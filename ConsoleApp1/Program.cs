@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using System.Text;
 using EntIdx = System.Int32; // this is your indexing type
 using EntTagsAndFlags = System.UInt64; // half tags, half component flags
 using EntUID = System.UInt64; // ain't no C++ :(
@@ -23,7 +25,7 @@ public static class EntTagsAndFlagsExts
 {
     public static uint UnpackFlags(this EntTagsAndFlags tnf)
     {
-        return (uint)(tnf | 0b11111111111111111111111111111111);
+        return (uint)(tnf & 0b11111111111111111111111111111111);
     }
 
     public static bool HasFlags(this EntTagsAndFlags tnf, uint flags)
@@ -31,9 +33,19 @@ public static class EntTagsAndFlagsExts
         return (tnf & flags) != 0;
     }
 
-    public static EntTagsAndFlags AddFlag(this EntTagsAndFlags tnf, uint flag)
+    public static EntTagsAndFlags PlusFlag(this EntTagsAndFlags tnf, uint flag) //use plus/minus to make it clear it's not mod in place
     {
         return tnf | flag;
+    }
+
+    public static EntTagsAndFlags MinusFlag(this EntTagsAndFlags tnf, uint flag)
+    {
+        return tnf ^ flag;
+    }
+
+    public static EntTagsAndFlags ClearedFlags(this EntTagsAndFlags tnf)
+    {
+        return 0ul.PlusTag(tnf.UnpackTags());
     }
 
     public static uint UnpackTags(this EntTagsAndFlags tnf)
@@ -45,12 +57,43 @@ public static class EntTagsAndFlagsExts
     {
         return (UnpackTags(tnf) & tags) != 0;
     }
+
+    public static EntTagsAndFlags PlusTag(this EntTagsAndFlags tnf, uint tag)
+    {
+        return tnf | ((EntTagsAndFlags)tag << 32);
+    }
+
+    public static EntTagsAndFlags MinusTag(this EntTagsAndFlags tnf, uint tag)
+    {
+        return tnf ^ ((EntTagsAndFlags)tag << 32);
+    }
 }
 
 public class MapAtoB<TA, TB>
 {
     private readonly Dictionary<TA, TB> a2b_;
     private readonly Dictionary<TB, TA> b2a_;
+
+    public int Count => a2b_.Count;
+    public IReadOnlyDictionary<TA, TB> DictDebug => a2b_;
+
+    private void CheckConsistency()
+    {
+#if DEBUG
+        if (a2b_.Count != b2a_.Count) throw new Exception();
+        foreach (KeyValuePair<TA, TB> pair in a2b_)
+        {
+            var aKeys = a2b_.Keys.ToArray();
+            var bKeys = b2a_.Keys.ToArray();
+
+            var aVals = a2b_.Values.ToArray();
+            var bVals = b2a_.Values.ToArray();
+
+            if (aKeys.Except(bVals).Count() > 0) throw new Exception();
+            if (bKeys.Except(aVals).Count() > 0) throw new Exception();
+        }
+#endif
+    }
 
     public MapAtoB(int startSize)
     {
@@ -62,6 +105,7 @@ public class MapAtoB<TA, TB>
     {
         a2b_.Add(a, b);
         b2a_.Add(b, a);
+        CheckConsistency();
     }
 
     public TB GetBfromA(TA a)
@@ -78,15 +122,16 @@ public class MapAtoB<TA, TB>
     {
         a2b_.Remove(a);
         b2a_.Remove(b);
+        CheckConsistency();
     }
 }
 
 [Flags]
 public enum Tag : uint
 {
-    Tag1 = 0b00000000000000000000000000000001,
-    Tag2 = 0b00000000000000000000000000000010,
-    Tag3 = 0b00000000000000000000000000000100,
+    Tag1 = 1<<0,
+    Tag2 = 1<<1,
+    Tag3 = 1<<2,
     // add your tags
 }
 
@@ -143,6 +188,7 @@ public abstract class ComponentMatcher
     }
 
     public abstract void RemoveFromEntIdx(EntIdx index);
+    public abstract string GetDebugData();
 }
 
 class ComponentBuffer<T> : ComponentMatcher where T : struct
@@ -170,8 +216,19 @@ class ComponentBuffer<T> : ComponentMatcher where T : struct
         EntIdx lastCompEntIdx = entIdxsToComponentsIdxs_.GetAfromB(lastCompIdx);
         components_[compIdx] = components_[lastCompIdx]; //copy last to hole
         entIdxsToComponentsIdxs_.RemoveAB(entIdx, compIdx);
-        entIdxsToComponentsIdxs_.AddPairAB(lastCompEntIdx, compIdx);
+        if (compIdx != lastCompIdx)
+        {
+            entIdxsToComponentsIdxs_.RemoveAB(lastCompEntIdx, lastCompIdx);
+            entIdxsToComponentsIdxs_.AddPairAB(lastCompEntIdx, compIdx);
+        }
         components_.RemoveAt(components_.Count - 1);
+    }
+
+    public override string GetDebugData()
+    {
+        return $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
+               $"  Components: {components_.Count}, Map Entries: {entIdxsToComponentsIdxs_.Count}\n"+
+               $"  Map: {string.Join(", ",entIdxsToComponentsIdxs_.DictDebug.Select(x => x.Key+":"+x.Value))}";
     }
 
     public delegate void ProcessComponent(ref T comp, EntIdx entIdx);
@@ -208,38 +265,79 @@ class EntityRegistry
         return newUID;
     }
 
-    public bool DeleteEntity(EntUID entID)
+    public bool DeleteEntity(EntUID entUID)
     {
-        if (uidsToIdxs_.TryGetValue(entID, out EntIdx idx))
+        if (uidsToIdxs_.TryGetValue(entUID, out EntIdx entIdx))
         {
-            EntTagsAndFlags removingEnt = entities_[idx];
-            entities_[idx] = entities_[entities_.Count - 1];
-            uidsToIdxs_.Remove(entID);
+            EntTagsAndFlags tnf = entities_[entIdx];
+            entities_[entIdx] = entities_[entities_.Count - 1];//todo get uid from last and update uidsToIdxs dict since we moved
+            uidsToIdxs_.Remove(entUID);
             entities_.RemoveAt(entities_.Count - 1);
-            foreach (ComponentMatcher matcher in MatchersFromFlags(removingEnt))
-                matcher.RemoveFromEntIdx(idx);
+            foreach (var matcher in MatchersFromFlags(tnf))
+                matcher.RemoveFromEntIdx(entIdx);
             return true;
         }
         return false;
+    }
+
+    public string GetEntityDebugData(EntUID entUID)
+    {
+        return $"Entity Debug Data: UID: {entUID}, Idx: {uidsToIdxs_[entUID]}\n"+
+               $" Flags: {Convert.ToString(entities_[uidsToIdxs_[entUID]].UnpackFlags(),2).PadLeft(32, '0').Replace('0','_').Replace('1', '■')}\n"+
+               $" Tags:  {Convert.ToString(entities_[uidsToIdxs_[entUID]].UnpackTags(),2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n"+
+               $" Components: {string.Join(", ", MatchersFromFlags(entities_[uidsToIdxs_[entUID]]).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+            ;
+    }
+
+    public string GetDebugData(bool detailed = false)
+    {
+        string s =
+            $"Entity count: {entities_.Count}, UID Dict Entries: {uidsToIdxs_.Count}, Component Buffers: {currentComponentBuffersIndex_}";
+        if (detailed)
+        {
+            s += "\n";
+            foreach (var uidAndIdx in uidsToIdxs_)
+                s += GetEntityDebugData(uidAndIdx.Key);
+            s += "\n";
+        }
+        return s;
     }
 
     //components
     private int currentComponentBuffersIndex_ = 0;
     private readonly ComponentMatcher[] componentBuffers_ = new ComponentMatcher[32];
 
-    private ComponentBuffer<T> GetCompBufferFromCompType<T>() where T : struct
+    public string GetComponentBuffersDebugData()
     {
-        foreach (ComponentMatcher matcher in componentBuffers_)
+        string s = "Registered Component Buffers:\n";
+        for (var i = 0; i < currentComponentBuffersIndex_; i++)
+        {
+            ComponentMatcher matcher = componentBuffers_[i];
+            s += $" {matcher.GetType().GenericTypeArguments[0].Name}\n"+
+                 $"{matcher.GetDebugData()}\n";
+        }
+        return s;
+    }
+
+    private ComponentBuffer<T> GetCompBufferFromCompType<T>() where T : struct //TODO use a dict of comp types?
+    {
+        for (var i = 0; i < currentComponentBuffersIndex_; i++)
+        {
+            ComponentMatcher matcher = componentBuffers_[i];
             if (matcher is ComponentBuffer<T> castBuffer)
                 return castBuffer;
+        }
         return null;
     }
 
     private IEnumerable<ComponentMatcher> MatchersFromFlags(EntTagsAndFlags flags)
     {
-        foreach (ComponentMatcher matcher in componentBuffers_)
+        for (var i = 0; i < currentComponentBuffersIndex_; i++)
+        {
+            ComponentMatcher matcher = componentBuffers_[i];
             if (matcher.Matches(flags))
                 yield return matcher;
+        }
     }
 
     public void CreateComponentBuffer<T>() where T : struct
@@ -265,19 +363,44 @@ class EntityRegistry
                 return false;
             #endif
 
-            entities_[entIdx] = tnf.AddFlag(compBuffer.Flag);
+            entities_[entIdx] = tnf.PlusFlag(compBuffer.Flag);
             compBuffer.Add(entIdx, component);
             return true;
         }
         throw new Exception($"Component buffer for {typeof(T)} components not registered");
     }
 
+    public bool RemoveComponent<T>(EntUID entID) where T : struct
+    {
+        var compBuffer = GetCompBufferFromCompType<T>();
+        if (compBuffer != null)
+        {
+            EntIdx entIdx = uidsToIdxs_[entID];
+            EntTagsAndFlags tnf = entities_[entIdx];
+
+            if (compBuffer.Matches(tnf))
+            {
+                entities_[entIdx] = tnf.MinusFlag(compBuffer.Flag);
+                compBuffer.RemoveFromEntIdx(entIdx);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void RemoveAllComponents(EntUID entID)
+    {
+        EntIdx entIdx = uidsToIdxs_[entID];
+        EntTagsAndFlags tnf = entities_[entIdx];
+        foreach (var matcher in MatchersFromFlags(tnf))
+            matcher.RemoveFromEntIdx(entIdx);
+        entities_[entIdx] = tnf.ClearedFlags();
+    }
 
 }
 
 class Program
 {
-
     struct Transform
     {
         public Vector3 Scale;
@@ -291,35 +414,115 @@ class Program
         public Vector3 Angular;
     }
 
+    static void PrintRegistryDebug(bool detailed = false)
+    {
+        Console.WriteLine(registry_.GetDebugData(detailed) + "\n");
+    }
+
+    static void PrintEntityDebug(EntUID entUID)
+    {
+        Console.WriteLine(registry_.GetEntityDebugData(entUID) + "\n");
+    }
+
+    static void PrintCompBufsDebug()
+    {
+        Console.WriteLine(registry_.GetComponentBuffersDebugData() + "\n");
+    }
+
+    static void Print(string s)
+    {
+        Console.WriteLine(s+"\n");
+    }
+
+    static EntityRegistry registry_;
+
     static void Main(string[] args)
     {
         //create registry
-        var registry = new EntityRegistry();
+        Print("Creating Registry");
+
+        registry_ = new EntityRegistry();
+
+        PrintRegistryDebug();
 
         //create and register some component buffers
-        registry.CreateComponentBuffer<Transform>();
-        registry.CreateComponentBuffer<Velocity>();
+        Print("Creating Component Buffers");
+
+        registry_.CreateComponentBuffer<Transform>();
+        registry_.CreateComponentBuffer<Velocity>();
+
+        PrintRegistryDebug();
+        PrintCompBufsDebug();
 
         //create entities and components
-        var entA = registry.CreateEntity();
-        registry.AddComponent(entA, new Transform());
-        registry.AddComponent(entA, new Velocity());
+        Print("Creating 4 Entities");
 
-        var entB = registry.CreateEntity();
-        registry.AddComponent(entB, new Transform());
+        var entA = registry_.CreateEntity();
+        registry_.AddComponent(entA, new Transform());
+        registry_.AddComponent(entA, new Velocity());
+        
+        PrintEntityDebug(entA);
 
-        var entC = registry.CreateEntity();
-        registry.AddComponent(entC, new Velocity());
+        var entB = registry_.CreateEntity();
+        registry_.AddComponent(entB, new Transform());
 
-        var entD = registry.CreateEntity();
+        PrintEntityDebug(entB);
 
+        var entC = registry_.CreateEntity();
+        registry_.AddComponent(entC, new Velocity());
 
+        PrintEntityDebug(entC);
 
-        //TODO remove component from entity
-        //TODO add same component type to entity
-        //TODO remove component from entity
-        //TODO add diff component type to entity
-        //TODO remove all components from entity
+        var entD = registry_.CreateEntity();
+
+        PrintEntityDebug(entD);
+
+        PrintRegistryDebug();
+        PrintCompBufsDebug();
+
+        Print("Removing component");
+        
+        registry_.RemoveComponent<Velocity>(entA);
+
+        PrintCompBufsDebug();
+
+        Print("Readding component");
+
+        registry_.AddComponent(entA, new Velocity());
+        
+        PrintCompBufsDebug();
+
+        Print("Removing other");
+
+        registry_.RemoveComponent<Transform>(entA);
+
+        PrintCompBufsDebug();
+
+        Print("Readding other");
+
+        registry_.AddComponent(entA, new Transform());
+
+        PrintCompBufsDebug();
+
+        Print("Adding new to 2nd entity");
+
+        registry_.AddComponent(entB, new Velocity());
+
+        PrintEntityDebug(entB);
+        PrintCompBufsDebug();
+
+        Print("Removing all from 2nd entity");
+
+        registry_.RemoveAllComponents(entB);
+
+        PrintEntityDebug(entB);
+        PrintCompBufsDebug();
+        
+        Print("Removing 3rd entity");
+
+        registry_.DeleteEntity(entC);
+        PrintRegistryDebug(true);
+
         //TODO remove entity - check if components got removed
         //TODO loop components single matcher
         //TODO loop components multiple matchers
@@ -330,7 +533,7 @@ class Program
 
 
 
-
+        Console.ReadKey();
     }
 }
 
