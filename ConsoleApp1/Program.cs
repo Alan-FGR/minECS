@@ -162,7 +162,6 @@ public class MappedBuffer<TKey, TData> : IDebugData
     public int Count { get; private set; }
     private readonly Dictionary<TKey, int> keysToIndices_;
 
-    protected IReadOnlyCollection<TKey> KeysDebug => keys_;
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
     public MappedBuffer(int initialSize = 2 << 10)
@@ -171,6 +170,11 @@ public class MappedBuffer<TKey, TData> : IDebugData
         keys_ = new TKey[initialSize];
         Count = 0;
         keysToIndices_ = new Dictionary<TKey, int>(initialSize);
+    }
+
+    internal (Dictionary<TKey, int> k2i, TKey[] keys, TData[] data) __GetBuffers()
+    {
+        return (keysToIndices_, keys_, data_);
     }
 
     protected TKey GetKeyFromIndex(int index)
@@ -186,6 +190,15 @@ public class MappedBuffer<TKey, TData> : IDebugData
     protected int GetIndexFromKey(TKey key)
     {
         return keysToIndices_[key];
+    }
+
+    protected int TryGetIndexFromKey(TKey key)
+    {
+        if (keysToIndices_.TryGetValue(key, out int value))
+        {
+            return value;
+        }
+        return -1;
     }
 
     public TData GetDataFromKey(TKey key)
@@ -410,20 +423,23 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
         entData.Flags = 0;
     }
 
-    public delegate void ProcessComponent<T1>(ref T1 comp, EntIdx entIdx);
-    public delegate void ProcessComponent<T1,T2>(ref T1 comp, ref T2 comp2, EntIdx entIdx);
+    public delegate void ProcessComponent<T1>(EntIdx entIdx, ref T1 component);
+    public delegate void ProcessComponent<T1,T2>(EntIdx entIdx, ref T1 component, ref T2 component2);
 
-//    public void Loop<T1>(ProcessComponent<T1> loopAction, EntTagsAndFlags tnf = 0) where T1 : struct 
-//    {
-//        var cb = GetComponentBufferFromComponentType<T1>();
-//
-//        for (var i = 0; i < components_.Count; i++)
-//        {
-//            T comp = components_[i];
-//            EntIdx eIdx = entIdxsToComponentsIdxs_.GetAfromB(i);
-//            loopAction(ref comp, eIdx);
-//        }
-//    }
+    public void Loop<T1>(ProcessComponent<T1> loopAction) where T1 : struct
+    {
+        var cb = GetComponentBufferFromComponentType<T1>();
+        var buffers = cb.__GetBuffers();
+        var entIdxs = buffers.keys;
+        var components = buffers.data;
+
+        for (var i = 0; i < components.Length; i++)
+        {
+            ref T1 component = ref components[i];
+            EntIdx entIdx = entIdxs[i];
+            loopAction(entIdx, ref component);
+        }
+    }
 //
 //    public void Loop<T1,T2>(ProcessComponent<T1,T2> loopAction, EntTagsAndFlags tnf = 0)
 //        where T1 : struct where T2 : struct
@@ -606,12 +622,19 @@ class Program
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
+        Print("Looping a ton of ents and comp");
+
+        Console.ReadKey();
+
+        sw = Stopwatch.StartNew();
+        registry_.Loop((EntIdx entIdx, ref Transform transform) =>
+        {
+            transform.Position = Vector3.One;
+        });
+        Print($"Took {sw.ElapsedMilliseconds}");
 
 
 
-
-
-        //TODO loop components single matcher
         //TODO loop components multiple matchers
         //TODO loop components exclusion matchers
         //TODO sort components (based on EntIdxs)
