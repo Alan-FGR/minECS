@@ -219,12 +219,13 @@ public class MappedBuffer<TKey, TData> : IDebugData
     {
         int entryIndex = keysToIndices_[key];
         int lastIndex = Count - 1;
-
+        TKey lastKey = keys_[lastIndex];
         TData removedData = data_[entryIndex];
 
         data_[entryIndex] = data_[lastIndex];
         keys_[entryIndex] = keys_[lastIndex];
-        keysToIndices_.Remove(key);//todo update last key to new index
+        keysToIndices_[lastKey] = entryIndex; //update index of last key
+        keysToIndices_.Remove(key);
 
         Count--;
         return (entryIndex, removedData);
@@ -587,7 +588,7 @@ class Program
 
         registry_.AddComponent(entD, new Transform());
         PrintRegistryDebug(true);
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         //####################### LOOPS
         // add a tonne of stuff
