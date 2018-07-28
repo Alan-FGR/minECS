@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -15,6 +16,14 @@ static class BitUtils
     public static int BitPosition(uint flag)
     {
         for (int i = 0; i < 32; i++)
+            if (flag >> i == 1)
+                return i;
+        return -1;
+    }
+
+    public static int BitPosition(ulong flag)
+    {
+        for (int i = 0; i < 64; i++)
             if (flag >> i == 1)
                 return i;
         return -1;
@@ -173,11 +182,74 @@ class TagsMan
 
 }
 
-public abstract class ComponentMatcher
+public interface IComponentMatcher
+{
+    void RemoveEntIdx(EntIdx index);
+    string GetDebugData();
+}
+
+public class MappedBuffer<TKey, TData> where TKey : struct where TData : struct
+{
+    private readonly List<TData> data_;
+    private readonly List<TKey> keys_; //same order as data_
+    private readonly Dictionary<TKey, int> keysToIndices_;
+
+    public MappedBuffer(int initialSize = 2 << 10)
+    {
+        data_ = new List<TData>(initialSize);
+        keys_ = new List<TKey>(initialSize);
+        keysToIndices_ = new Dictionary<TKey, int>(initialSize);
+    }
+
+    TKey GetKeyFromIndex(int index)
+    {
+        return keys_[index];
+    }
+
+    TData GetDataFromIndex(int index)
+    {
+        return data_[index];
+    }
+
+    int GetIndexFromKey(TKey key)
+    {
+        return keysToIndices_[key];
+    }
+
+    public TData GetDataFromKey(TKey key)
+    {
+        return data_[keysToIndices_[key]];
+    }
+
+    public void AddEntry(TKey key, in TData data)
+    {
+        //todo check existence
+        int currentIndex = data_.Count;
+        data_.Add(data);
+        keys_.Add(key);
+        keysToIndices_[key] = currentIndex;
+    }
+
+    public void RemoveEntry(TKey key)
+    {
+        int entryIndex = keysToIndices_[key];
+        int lastIndex = data_.Count - 1;
+
+        data_[entryIndex] = data_[lastIndex];
+        keys_[entryIndex] = keys_[lastIndex];
+
+        data_.RemoveAt(lastIndex);
+        keys_.RemoveAt(lastIndex);
+        keysToIndices_.Remove(key);
+    }
+}
+
+class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
+    where T : struct
 {
     public uint Flag { get; private set; }
 
-    public void __SetMaskInternal(int bufferIndex)
+    internal void __SetFlagInternal(int bufferIndex)
     {
         Flag = 1u << bufferIndex;
     }
@@ -187,72 +259,18 @@ public abstract class ComponentMatcher
         return tnf.HasFlags(Flag);
     }
 
-    public abstract void RemoveFromEntIdx(EntIdx index);
-    public abstract void RemoveAll();
-    public abstract string GetDebugData();
-}
-
-class ComponentBuffer<T> : ComponentMatcher where T : struct
-{
-    private IList<T> components_;
-    private MapAtoB<EntIdx, int> entIdxsToComponentsIdxs_;
-
-    public ComponentBuffer(int initialSize = 2 << 10)
+    public void RemoveEntIdx(EntIdx index)
     {
-        components_ = new List<T>(initialSize);
-        entIdxsToComponentsIdxs_ = new MapAtoB<EntIdx, int>(initialSize);
+        RemoveEntry(index);
     }
 
-    public uint Add(EntIdx entIdx, T comp)
-    {
-        entIdxsToComponentsIdxs_.AddPairAB(entIdx, components_.Count);
-        components_.Add(comp);
-        return (uint)(components_.Count - 1);
-    }
-
-    public override void RemoveFromEntIdx(EntIdx entIdx)
-    {
-        int compIdx = entIdxsToComponentsIdxs_.GetBfromA(entIdx);
-        int lastCompIdx = components_.Count - 1;
-        EntIdx lastCompEntIdx = entIdxsToComponentsIdxs_.GetAfromB(lastCompIdx);
-        components_[compIdx] = components_[lastCompIdx]; //copy last to hole
-        entIdxsToComponentsIdxs_.RemoveAB(entIdx, compIdx);
-        if (compIdx != lastCompIdx)
-        {
-            entIdxsToComponentsIdxs_.RemoveAB(lastCompEntIdx, lastCompIdx);
-            entIdxsToComponentsIdxs_.AddPairAB(lastCompEntIdx, compIdx);
-        }
-        components_.RemoveAt(components_.Count - 1);
-    }
-
-    public override void RemoveAll()
-    {
-        entIdxsToComponentsIdxs_ = new MapAtoB<EntIdx, int>(components_.Count);
-        components_ = new List<T>(components_.Count);
-    }
-
-    public override string GetDebugData()
+    public string GetDebugData()
     {
         return $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $"  Components: {components_.Count}, Map Entries: {entIdxsToComponentsIdxs_.Count}\n"+
                $"  Map: {string.Join(", ",entIdxsToComponentsIdxs_.DictAtoB.Select(x => x.Key+":"+x.Value))}";
     }
 
-    public delegate void ProcessComponent(ref T comp, EntIdx entIdx);
-
-    public void Loop(ProcessComponent loopAction, uint compsMask = 0)
-    {
-        for (var i = 0; i < components_.Count; i++)
-        {
-            T comp = components_[i];
-            EntIdx eIdx = entIdxsToComponentsIdxs_.GetAfromB(i);
-            loopAction(ref comp, eIdx);
-        }
-
-        //TODO mask
-        //TODO
-        //TODO
-    }
 }
 
 class EntityRegistry
@@ -375,7 +393,7 @@ class EntityRegistry
     {
         var buffer = new ComponentBuffer<T>();
         componentBuffers_[currentComponentBuffersIndex_] = buffer;
-        buffer.__SetMaskInternal(currentComponentBuffersIndex_);
+        buffer.__SetFlagInternal(currentComponentBuffersIndex_);
         currentComponentBuffersIndex_++;
     }
 
@@ -428,6 +446,32 @@ class EntityRegistry
         entities_[entIdx] = tnf.ClearedFlags();
     }
 
+    public delegate void ProcessComponent<T1>(ref T1 comp, EntIdx entIdx);
+    public delegate void ProcessComponent<T1,T2>(ref T1 comp, ref T2 comp2, EntIdx entIdx);
+
+//    public void Loop<T1>(ProcessComponent<T1> loopAction, EntTagsAndFlags tnf = 0) where T1 : struct 
+//    {
+//        var cb = GetCompBufferFromCompType<T1>();
+//
+//        for (var i = 0; i < components_.Count; i++)
+//        {
+//            T comp = components_[i];
+//            EntIdx eIdx = entIdxsToComponentsIdxs_.GetAfromB(i);
+//            loopAction(ref comp, eIdx);
+//        }
+//    }
+//
+//    public void Loop<T1,T2>(ProcessComponent<T1,T2> loopAction, EntTagsAndFlags tnf = 0)
+//        where T1 : struct where T2 : struct
+//    {
+//        for (var i = 0; i < components_.Count; i++)
+//        {
+//            T comp = components_[i];
+//            EntIdx eIdx = entIdxsToComponentsIdxs_.GetAfromB(i);
+//            loopAction(ref comp, eIdx);
+//        }
+//    }
+
 }
 
 class Program
@@ -469,6 +513,7 @@ class Program
 
     static void Main(string[] args)
     {
+
         //create registry
         Print("Creating Registry");
 
@@ -585,15 +630,21 @@ class Program
         //####################### LOOPS
         // add a tonne of stuff
         Print("Adding a ton of ents and comps");
+
+        var sw = Stopwatch.StartNew();
         for (int i = 0; i < 1000000; i++)
         {
             var id = registry_.CreateEntity();
             registry_.AddComponent(id, new Transform());
             registry_.AddComponent(id, new Velocity());
         }
+        Print($"Took {sw.ElapsedMilliseconds}");
 
         PrintRegistryDebug();
         PrintCompBufsDebug();
+
+
+
 
 
 
