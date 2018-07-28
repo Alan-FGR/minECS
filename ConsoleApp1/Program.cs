@@ -37,8 +37,12 @@ public interface IDebugData
 
 public struct EntityData
 {
-    public EntFlags flags;
-    public EntTags tags;
+    public EntFlags Flags;
+    public EntTags Tags;
+    public EntityData(EntTags tags) : this()
+    {
+        Tags = tags;
+    }
 }
 
 public class MapAtoB<TA, TB>
@@ -144,38 +148,42 @@ class TagsMan
 
 }
 
-public interface IComponentMatcher
+public interface IComponentMatcher : IDebugData
 {
     void RemoveEntIdx(EntIdx index);
+    bool Matches(EntFlags flags);
 }
 
 public class MappedBuffer<TKey, TData> : IDebugData
     where TKey : struct where TData : struct
 {
-    private readonly List<TData> data_;
-    private readonly List<TKey> keys_; //same order as data_
+    private TData[] data_;
+    private TKey[] keys_; //same order as data_
+    public int Count { get; private set; }
     private readonly Dictionary<TKey, int> keysToIndices_;
 
-    public int Count => data_.Count;
+    protected IReadOnlyCollection<TKey> KeysDebug => keys_;
+    protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
     public MappedBuffer(int initialSize = 2 << 10)
     {
-        data_ = new List<TData>(initialSize);
-        keys_ = new List<TKey>(initialSize);
+        data_ = new TData[initialSize];
+        keys_ = new TKey[initialSize];
+        Count = 0;
         keysToIndices_ = new Dictionary<TKey, int>(initialSize);
     }
 
-    TKey GetKeyFromIndex(int index)
+    protected TKey GetKeyFromIndex(int index)
     {
         return keys_[index];
     }
 
-    TData GetDataFromIndex(int index)
+    protected ref TData GetDataFromIndex(int index)
     {
-        return data_[index];
+        return ref data_[index];
     }
 
-    int GetIndexFromKey(TKey key)
+    protected int GetIndexFromKey(TKey key)
     {
         return keysToIndices_[key];
     }
@@ -187,30 +195,45 @@ public class MappedBuffer<TKey, TData> : IDebugData
 
     public void AddEntry(TKey key, in TData data)
     {
-        //todo check existence
-        int currentIndex = data_.Count;
-        data_.Add(data);
-        keys_.Add(key);
+        //todo check tkey existence
+        int currentIndex = Count;
+
+        if (data_.Length <= currentIndex)
+        {
+            var newData = new TData[data_.Length*2];
+            var newKeys = new TKey[data_.Length*2];
+            Array.Copy(data_, 0, newData, 0, data_.Length);
+            Array.Copy(keys_, 0, newKeys, 0, data_.Length);
+            data_ = newData;
+            keys_ = newKeys;
+        }
+
+        data_[currentIndex] = data;
+        keys_[currentIndex] = key;
         keysToIndices_[key] = currentIndex;
+
+        Count++;
     }
 
-    public void RemoveEntry(TKey key)
+    public (int index, TData data) RemoveEntry(TKey key)
     {
         int entryIndex = keysToIndices_[key];
-        int lastIndex = data_.Count - 1;
+        int lastIndex = Count - 1;
+
+        TData removedData = data_[entryIndex];
 
         data_[entryIndex] = data_[lastIndex];
         keys_[entryIndex] = keys_[lastIndex];
-
-        data_.RemoveAt(lastIndex);
-        keys_.RemoveAt(lastIndex);
         keysToIndices_.Remove(key);
+
+        Count--;
+        return (entryIndex, removedData);
     }
 
     public virtual string GetDebugData(bool detailed)
     {
         return 
-        $"  Components: {Count}, Map Entries: {keysToIndices_.Count}\n" +
+        $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
         $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
     }
 }
@@ -247,76 +270,45 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
 class EntityRegistry : MappedBuffer<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
-    private MapAtoB<EntUID, EntIdx> uidsToIdxs_;
-    private List<EntTagsAndFlags> entities_;
-
-    public IReadOnlyDictionary<EntUID, EntIdx> UIDsToIdxsDict => uidsToIdxs_.DictAtoB;
-
+    
     //    public TagsMan TagsManager = new TagsMan();
 
-    public EntityRegistry(int bufferStartingSize = 2<<10)
-    {
-        InitBuffers(bufferStartingSize);
-    }
-
-    private void InitBuffers(int bufferStartingSize)
-    {
-        uidsToIdxs_ = new MapAtoB<EntUID, EntIdx>(bufferStartingSize);
-        entities_ = new List<EntTagsAndFlags>(bufferStartingSize);
-    }
-
-    public EntUID CreateEntity()
+    public EntUID CreateEntity(EntTags tags = 0)
     {
         EntUID newUID = currentUID_;
-        uidsToIdxs_.AddPairAB(newUID, entities_.Count);
-        entities_.Add(0);
+        AddEntry(newUID, new EntityData(tags));
         currentUID_++;
         return newUID;
     }
 
     public void DeleteEntity(EntUID entUID)
     {
-        EntIdx entIdx = uidsToIdxs_.GetBfromA(entUID);
-        EntTagsAndFlags tnf = entities_[entIdx];
-        EntIdx lastIdx = entities_.Count - 1;
-        EntUID lastUID = uidsToIdxs_.GetAfromB(lastIdx);
-        entities_[entIdx] = entities_[lastIdx];
-        uidsToIdxs_.RemoveAB(entUID, entIdx);
-        if (entIdx != lastIdx)
-        {
-            uidsToIdxs_.RemoveAB(lastUID,lastIdx);
-            uidsToIdxs_.AddPairAB(lastUID,entIdx);
-        }
-        entities_.RemoveAt(lastIdx);
-        foreach (var matcher in MatchersFromFlags(tnf))
-            matcher.RemoveFromEntIdx(entIdx);
-    }
+        var removedEntIdxAndData = RemoveEntry(entUID);
+        var flags = removedEntIdxAndData.data.Flags;
+        EntIdx entIdx = removedEntIdxAndData.index;
 
-    public void DeleteAll()
-    {
-        InitBuffers(entities_.Count);
-        for (var i = 0; i < currentComponentBuffersIndex_; i++)
-            componentBuffers_[i].RemoveAll();
+        foreach (var matcher in MatchersFromFlags(flags))
+            matcher.RemoveEntIdx(entIdx);
     }
 
     public string GetEntityDebugData(EntUID entUID)
     {
-        return $"Entity Debug Data: UID: {entUID}, Idx: {uidsToIdxs_.GetBfromA(entUID)}\n"+
-               $" Flags: {Convert.ToString(entities_[uidsToIdxs_.GetBfromA(entUID)].UnpackFlags(),2).PadLeft(32, '0').Replace('0','_').Replace('1', '■')}\n"+
-               $" Tags:  {Convert.ToString(entities_[uidsToIdxs_.GetBfromA(entUID)].UnpackTags(),2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n"+
-               $" Components: {string.Join(", ", MatchersFromFlags(entities_[uidsToIdxs_.GetBfromA(entUID)]).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+        return $"Entity Debug Data: UID: {entUID}, Idx: {GetIndexFromKey(entUID)}\n"+
+               $" Flags: {Convert.ToString((long)GetDataFromKey(entUID).Flags,2).PadLeft(32, '0').Replace('0','_').Replace('1', '■')}\n"+
+               $" Tags:  {Convert.ToString((long)GetDataFromKey(entUID).Tags,2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n"+
+               $" Components: {string.Join(", ", MatchersFromFlags(GetDataFromKey(entUID).Flags).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
             ;
     }
 
-    public string GetDebugData(bool detailed = false)
+    public override string GetDebugData(bool detailed = false)
     {
         string s =
-            $"Entity count: {entities_.Count}, UID Dict Entries: {uidsToIdxs_.Count}, Component Buffers: {currentComponentBuffersIndex_}";
+            $"Entity count: {Count}, UID Dict Entries: {KeysToIndicesDebug.Count}, Component Buffers: {currentComponentBuffersIndex_}";
         if (detailed)
         {
             s += "\n";
-            foreach (var uidAndIdx in uidsToIdxs_.DictAtoB)
-                s += GetEntityDebugData(uidAndIdx.Key)+"\n";
+            foreach (var pair in KeysToIndicesDebug)
+                s += GetEntityDebugData(pair.Key)+"\n";
             s += "\n";
         }
         return s;
@@ -324,37 +316,37 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     //components
     private int currentComponentBuffersIndex_ = 0;
-    private readonly ComponentMatcher[] componentBuffers_ = new ComponentMatcher[32];
+    private readonly IComponentMatcher[] componentBuffers_ = new IComponentMatcher[sizeof(EntFlags)];
 
     public string GetComponentBuffersDebugData(bool detailed = false)
     {
         string s = "Registered Component Buffers:\n";
         for (var i = 0; i < currentComponentBuffersIndex_; i++)
         {
-            ComponentMatcher matcher = componentBuffers_[i];
+            IComponentMatcher matcher = componentBuffers_[i];
             s += $" {matcher.GetType().GenericTypeArguments[0].Name}";
             if(detailed)
-                s+=$"\n {matcher.GetDebugData()}\n";
+                s+=$"\n {matcher.GetDebugData(false)}\n";
         }
         return s;
     }
 
-    private ComponentBuffer<T> GetCompBufferFromCompType<T>() where T : struct //TODO use a dict of comp types?
+    private ComponentBuffer<T> GetComponentBufferFromComponentType<T>() where T : struct //TODO use a dict of comp types?
     {
         for (var i = 0; i < currentComponentBuffersIndex_; i++)
         {
-            ComponentMatcher matcher = componentBuffers_[i];
+            IComponentMatcher matcher = componentBuffers_[i];
             if (matcher is ComponentBuffer<T> castBuffer)
                 return castBuffer;
         }
         return null;
     }
 
-    private IEnumerable<ComponentMatcher> MatchersFromFlags(EntTagsAndFlags flags)
+    private IEnumerable<IComponentMatcher> MatchersFromFlags(EntFlags flags)
     {
         for (var i = 0; i < currentComponentBuffersIndex_; i++)
         {
-            ComponentMatcher matcher = componentBuffers_[i];
+            IComponentMatcher matcher = componentBuffers_[i];
             if (matcher.Matches(flags))
                 yield return matcher;
         }
@@ -370,21 +362,21 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public bool AddComponent<T>(EntUID entID, T component) where T : struct
     {
-        var compBuffer = GetCompBufferFromCompType<T>();
+        var compBuffer = GetComponentBufferFromComponentType<T>();
         if (compBuffer != null)
         {
-            EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
-            EntTagsAndFlags tnf = entities_[entIdx];
+            EntIdx entIdx = GetIndexFromKey(entID);
+            EntityData entData = GetDataFromIndex(entIdx);
             
-            if (compBuffer.Matches(tnf))
+            if (compBuffer.Matches(entData.Flags))
             #if DEBUG
                 throw new Exception("Entity already has component");
             #else
                 return false;
             #endif
 
-            entities_[entIdx] = tnf.PlusFlag(compBuffer.Flag);
-            compBuffer.Add(entIdx, component);
+            entData.Flags |= compBuffer.Flag;
+            compBuffer.AddEntry(entIdx, component);
             return true;
         }
         throw new Exception($"Component buffer for {typeof(T)} components not registered");
@@ -392,16 +384,16 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public bool RemoveComponent<T>(EntUID entID) where T : struct
     {
-        var compBuffer = GetCompBufferFromCompType<T>();
+        var compBuffer = GetComponentBufferFromComponentType<T>();
         if (compBuffer != null)
         {
-            EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
-            EntTagsAndFlags tnf = entities_[entIdx];
+            EntIdx entIdx = GetIndexFromKey(entID);
+            EntityData entData = GetDataFromIndex(entIdx);
 
-            if (compBuffer.Matches(tnf))
+            if (compBuffer.Matches(entData.Flags))
             {
-                entities_[entIdx] = tnf.MinusFlag(compBuffer.Flag);
-                compBuffer.RemoveFromEntIdx(entIdx);
+                entData.Flags ^= compBuffer.Flag;
+                compBuffer.RemoveEntIdx(entIdx);
                 return true;
             }
         }
@@ -410,11 +402,11 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public void RemoveAllComponents(EntUID entID)
     {
-        EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
-        EntTagsAndFlags tnf = entities_[entIdx];
-        foreach (var matcher in MatchersFromFlags(tnf))
-            matcher.RemoveFromEntIdx(entIdx);
-        entities_[entIdx] = tnf.ClearedFlags();
+        EntIdx entIdx = GetIndexFromKey(entID);
+        EntityData entData = GetDataFromIndex(entIdx);
+        foreach (var matcher in MatchersFromFlags(entData.Flags))
+            matcher.RemoveEntIdx(entIdx);
+        entData.Flags = 0;
     }
 
     public delegate void ProcessComponent<T1>(ref T1 comp, EntIdx entIdx);
@@ -422,7 +414,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
 //    public void Loop<T1>(ProcessComponent<T1> loopAction, EntTagsAndFlags tnf = 0) where T1 : struct 
 //    {
-//        var cb = GetCompBufferFromCompType<T1>();
+//        var cb = GetComponentBufferFromComponentType<T1>();
 //
 //        for (var i = 0; i < components_.Count; i++)
 //        {
@@ -591,10 +583,9 @@ class Program
         PrintRegistryDebug(true);
         PrintCompBufsDebug(true);
 
-        Print("Removing all");
+        Print("Adding component to 4th entity");
 
         registry_.AddComponent(entD, new Transform());
-        registry_.DeleteAll();
         PrintRegistryDebug(true);
         PrintCompBufsDebug();
 
