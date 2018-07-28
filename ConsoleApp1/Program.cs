@@ -224,7 +224,7 @@ public class MappedBuffer<TKey, TData> : IDebugData
 
         data_[entryIndex] = data_[lastIndex];
         keys_[entryIndex] = keys_[lastIndex];
-        keysToIndices_.Remove(key);
+        keysToIndices_.Remove(key);//todo update last key to new index
 
         Count--;
         return (entryIndex, removedData);
@@ -366,7 +366,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
         if (compBuffer != null)
         {
             EntIdx entIdx = GetIndexFromKey(entID);
-            EntityData entData = GetDataFromIndex(entIdx);
+            ref EntityData entData = ref GetDataFromIndex(entIdx);
             
             if (compBuffer.Matches(entData.Flags))
             #if DEBUG
@@ -388,7 +388,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
         if (compBuffer != null)
         {
             EntIdx entIdx = GetIndexFromKey(entID);
-            EntityData entData = GetDataFromIndex(entIdx);
+            ref EntityData entData = ref GetDataFromIndex(entIdx);
 
             if (compBuffer.Matches(entData.Flags))
             {
@@ -403,7 +403,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
     public void RemoveAllComponents(EntUID entID)
     {
         EntIdx entIdx = GetIndexFromKey(entID);
-        EntityData entData = GetDataFromIndex(entIdx);
+        ref EntityData entData = ref GetDataFromIndex(entIdx);
         foreach (var matcher in MatchersFromFlags(entData.Flags))
             matcher.RemoveEntIdx(entIdx);
         entData.Flags = 0;
