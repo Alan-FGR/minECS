@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using EntIdx = System.Int32; // this is your indexing type
-using EntTagsAndFlags = System.UInt64; // half tags, half component flags
+using EntIdx = System.Int32; // this the indexing type
 using EntUID = System.UInt64; // ain't no C++ :(
+using EntFlags = System.UInt64; // component flags
+using EntTags = System.UInt64;
 
 //TODO use faster collections for buffers (wrapped array/unmanagedcollection)
-//TODO
 
 static class BitUtils
 {
@@ -30,52 +30,15 @@ static class BitUtils
     }
 }
 
-public static class EntTagsAndFlagsExts
+public interface IDebugData
 {
-    public static uint UnpackFlags(this EntTagsAndFlags tnf)
-    {
-        return (uint)(tnf & 0b11111111111111111111111111111111);
-    }
+    string GetDebugData(bool detailed);
+}
 
-    public static bool HasFlags(this EntTagsAndFlags tnf, uint flags)
-    {
-        return (tnf & flags) != 0;
-    }
-
-    public static EntTagsAndFlags PlusFlag(this EntTagsAndFlags tnf, uint flag) //use plus/minus to make it clear it's not mod in place
-    {
-        return tnf | flag;
-    }
-
-    public static EntTagsAndFlags MinusFlag(this EntTagsAndFlags tnf, uint flag)
-    {
-        return tnf ^ flag;
-    }
-
-    public static EntTagsAndFlags ClearedFlags(this EntTagsAndFlags tnf)
-    {
-        return 0ul.PlusTag(tnf.UnpackTags());
-    }
-
-    public static uint UnpackTags(this EntTagsAndFlags tnf)
-    {
-        return (uint)(tnf >> 32);
-    }
-
-    public static bool HasTags(this EntTagsAndFlags tnf, uint tags)
-    {
-        return (UnpackTags(tnf) & tags) != 0;
-    }
-
-    public static EntTagsAndFlags PlusTag(this EntTagsAndFlags tnf, uint tag)
-    {
-        return tnf | ((EntTagsAndFlags)tag << 32);
-    }
-
-    public static EntTagsAndFlags MinusTag(this EntTagsAndFlags tnf, uint tag)
-    {
-        return tnf ^ ((EntTagsAndFlags)tag << 32);
-    }
+public struct EntityData
+{
+    public EntFlags flags;
+    public EntTags tags;
 }
 
 public class MapAtoB<TA, TB>
@@ -135,8 +98,7 @@ public class MapAtoB<TA, TB>
     }
 }
 
-[Flags]
-public enum Tag : uint
+[Flags] public enum Tag : EntTags
 {
     Tag1 = 1<<0,
     Tag2 = 1<<1,
@@ -185,14 +147,16 @@ class TagsMan
 public interface IComponentMatcher
 {
     void RemoveEntIdx(EntIdx index);
-    string GetDebugData();
 }
 
-public class MappedBuffer<TKey, TData> where TKey : struct where TData : struct
+public class MappedBuffer<TKey, TData> : IDebugData
+    where TKey : struct where TData : struct
 {
     private readonly List<TData> data_;
     private readonly List<TKey> keys_; //same order as data_
     private readonly Dictionary<TKey, int> keysToIndices_;
+
+    public int Count => data_.Count;
 
     public MappedBuffer(int initialSize = 2 << 10)
     {
@@ -242,6 +206,13 @@ public class MappedBuffer<TKey, TData> where TKey : struct where TData : struct
         keys_.RemoveAt(lastIndex);
         keysToIndices_.Remove(key);
     }
+
+    public virtual string GetDebugData(bool detailed)
+    {
+        return 
+        $"  Components: {Count}, Map Entries: {keysToIndices_.Count}\n" +
+        $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
+    }
 }
 
 class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
@@ -254,9 +225,9 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
         Flag = 1u << bufferIndex;
     }
 
-    public bool Matches(EntTagsAndFlags tnf)
+    public bool Matches(EntFlags flags)
     {
-        return tnf.HasFlags(Flag);
+        return (flags & Flag) != 0;
     }
 
     public void RemoveEntIdx(EntIdx index)
@@ -264,18 +235,18 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
         RemoveEntry(index);
     }
 
-    public string GetDebugData()
+    public override string GetDebugData(bool detailed)
     {
-        return $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-               $"  Components: {components_.Count}, Map Entries: {entIdxsToComponentsIdxs_.Count}\n"+
-               $"  Map: {string.Join(", ",entIdxsToComponentsIdxs_.DictAtoB.Select(x => x.Key+":"+x.Value))}";
+        return
+        $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
+        base.GetDebugData(detailed);
     }
 
 }
 
-class EntityRegistry
+class EntityRegistry : MappedBuffer<EntUID, EntityData>
 {
-    private EntUID currentUID = 0;
+    private EntUID currentUID_ = 0;
     private MapAtoB<EntUID, EntIdx> uidsToIdxs_;
     private List<EntTagsAndFlags> entities_;
 
@@ -296,10 +267,10 @@ class EntityRegistry
 
     public EntUID CreateEntity()
     {
-        EntUID newUID = currentUID;
+        EntUID newUID = currentUID_;
         uidsToIdxs_.AddPairAB(newUID, entities_.Count);
         entities_.Add(0);
-        currentUID++;
+        currentUID_++;
         return newUID;
     }
 
