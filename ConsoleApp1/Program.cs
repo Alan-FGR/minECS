@@ -75,7 +75,7 @@ public class MapAtoB<TA, TB>
     private readonly Dictionary<TB, TA> b2a_;
 
     public int Count => a2b_.Count;
-    public IReadOnlyDictionary<TA, TB> DictDebug => a2b_;
+    public IReadOnlyDictionary<TA, TB> DictAtoB => a2b_;
 
     private void CheckConsistency()
     {
@@ -188,13 +188,14 @@ public abstract class ComponentMatcher
     }
 
     public abstract void RemoveFromEntIdx(EntIdx index);
+    public abstract void RemoveAll();
     public abstract string GetDebugData();
 }
 
 class ComponentBuffer<T> : ComponentMatcher where T : struct
 {
-    private readonly IList<T> components_;
-    private readonly MapAtoB<EntIdx, int> entIdxsToComponentsIdxs_;
+    private IList<T> components_;
+    private MapAtoB<EntIdx, int> entIdxsToComponentsIdxs_;
 
     public ComponentBuffer(int initialSize = 2 << 10)
     {
@@ -224,11 +225,17 @@ class ComponentBuffer<T> : ComponentMatcher where T : struct
         components_.RemoveAt(components_.Count - 1);
     }
 
+    public override void RemoveAll()
+    {
+        entIdxsToComponentsIdxs_ = new MapAtoB<EntIdx, int>(components_.Count);
+        components_ = new List<T>(components_.Count);
+    }
+
     public override string GetDebugData()
     {
         return $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $"  Components: {components_.Count}, Map Entries: {entIdxsToComponentsIdxs_.Count}\n"+
-               $"  Map: {string.Join(", ",entIdxsToComponentsIdxs_.DictDebug.Select(x => x.Key+":"+x.Value))}";
+               $"  Map: {string.Join(", ",entIdxsToComponentsIdxs_.DictAtoB.Select(x => x.Key+":"+x.Value))}";
     }
 
     public delegate void ProcessComponent(ref T comp, EntIdx entIdx);
@@ -251,41 +258,64 @@ class ComponentBuffer<T> : ComponentMatcher where T : struct
 class EntityRegistry
 {
     private EntUID currentUID = 0;
-    private readonly Dictionary<EntUID, EntIdx> uidsToIdxs_ = new Dictionary<EntUID, EntIdx>(2 << 10);
-    private readonly List<EntTagsAndFlags> entities_ = new List<EntTagsAndFlags>(2 << 10);
+    private MapAtoB<EntUID, EntIdx> uidsToIdxs_;
+    private List<EntTagsAndFlags> entities_;
+
+    public IReadOnlyDictionary<EntUID, EntIdx> UIDsToIdxsDict => uidsToIdxs_.DictAtoB;
 
     //    public TagsMan TagsManager = new TagsMan();
+
+    public EntityRegistry(int bufferStartingSize = 2<<10)
+    {
+        InitBuffers(bufferStartingSize);
+    }
+
+    private void InitBuffers(int bufferStartingSize)
+    {
+        uidsToIdxs_ = new MapAtoB<EntUID, EntIdx>(bufferStartingSize);
+        entities_ = new List<EntTagsAndFlags>(bufferStartingSize);
+    }
 
     public EntUID CreateEntity()
     {
         EntUID newUID = currentUID;
-        uidsToIdxs_[newUID] = entities_.Count;
+        uidsToIdxs_.AddPairAB(newUID, entities_.Count);
         entities_.Add(0);
         currentUID++;
         return newUID;
     }
 
-    public bool DeleteEntity(EntUID entUID)
+    public void DeleteEntity(EntUID entUID)
     {
-        if (uidsToIdxs_.TryGetValue(entUID, out EntIdx entIdx))
+        EntIdx entIdx = uidsToIdxs_.GetBfromA(entUID);
+        EntTagsAndFlags tnf = entities_[entIdx];
+        EntIdx lastIdx = entities_.Count - 1;
+        EntUID lastUID = uidsToIdxs_.GetAfromB(lastIdx);
+        entities_[entIdx] = entities_[lastIdx];
+        uidsToIdxs_.RemoveAB(entUID, entIdx);
+        if (entIdx != lastIdx)
         {
-            EntTagsAndFlags tnf = entities_[entIdx];
-            entities_[entIdx] = entities_[entities_.Count - 1];//todo get uid from last and update uidsToIdxs dict since we moved
-            uidsToIdxs_.Remove(entUID);
-            entities_.RemoveAt(entities_.Count - 1);
-            foreach (var matcher in MatchersFromFlags(tnf))
-                matcher.RemoveFromEntIdx(entIdx);
-            return true;
+            uidsToIdxs_.RemoveAB(lastUID,lastIdx);
+            uidsToIdxs_.AddPairAB(lastUID,entIdx);
         }
-        return false;
+        entities_.RemoveAt(lastIdx);
+        foreach (var matcher in MatchersFromFlags(tnf))
+            matcher.RemoveFromEntIdx(entIdx);
+    }
+
+    public void DeleteAll()
+    {
+        InitBuffers(entities_.Count);
+        for (var i = 0; i < currentComponentBuffersIndex_; i++)
+            componentBuffers_[i].RemoveAll();
     }
 
     public string GetEntityDebugData(EntUID entUID)
     {
-        return $"Entity Debug Data: UID: {entUID}, Idx: {uidsToIdxs_[entUID]}\n"+
-               $" Flags: {Convert.ToString(entities_[uidsToIdxs_[entUID]].UnpackFlags(),2).PadLeft(32, '0').Replace('0','_').Replace('1', '■')}\n"+
-               $" Tags:  {Convert.ToString(entities_[uidsToIdxs_[entUID]].UnpackTags(),2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n"+
-               $" Components: {string.Join(", ", MatchersFromFlags(entities_[uidsToIdxs_[entUID]]).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+        return $"Entity Debug Data: UID: {entUID}, Idx: {uidsToIdxs_.GetBfromA(entUID)}\n"+
+               $" Flags: {Convert.ToString(entities_[uidsToIdxs_.GetBfromA(entUID)].UnpackFlags(),2).PadLeft(32, '0').Replace('0','_').Replace('1', '■')}\n"+
+               $" Tags:  {Convert.ToString(entities_[uidsToIdxs_.GetBfromA(entUID)].UnpackTags(),2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n"+
+               $" Components: {string.Join(", ", MatchersFromFlags(entities_[uidsToIdxs_.GetBfromA(entUID)]).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
             ;
     }
 
@@ -296,8 +326,8 @@ class EntityRegistry
         if (detailed)
         {
             s += "\n";
-            foreach (var uidAndIdx in uidsToIdxs_)
-                s += GetEntityDebugData(uidAndIdx.Key);
+            foreach (var uidAndIdx in uidsToIdxs_.DictAtoB)
+                s += GetEntityDebugData(uidAndIdx.Key)+"\n";
             s += "\n";
         }
         return s;
@@ -307,14 +337,15 @@ class EntityRegistry
     private int currentComponentBuffersIndex_ = 0;
     private readonly ComponentMatcher[] componentBuffers_ = new ComponentMatcher[32];
 
-    public string GetComponentBuffersDebugData()
+    public string GetComponentBuffersDebugData(bool detailed = false)
     {
         string s = "Registered Component Buffers:\n";
         for (var i = 0; i < currentComponentBuffersIndex_; i++)
         {
             ComponentMatcher matcher = componentBuffers_[i];
-            s += $" {matcher.GetType().GenericTypeArguments[0].Name}\n"+
-                 $"{matcher.GetDebugData()}\n";
+            s += $" {matcher.GetType().GenericTypeArguments[0].Name}";
+            if(detailed)
+                s+=$"\n {matcher.GetDebugData()}\n";
         }
         return s;
     }
@@ -353,7 +384,7 @@ class EntityRegistry
         var compBuffer = GetCompBufferFromCompType<T>();
         if (compBuffer != null)
         {
-            EntIdx entIdx = uidsToIdxs_[entID];
+            EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
             EntTagsAndFlags tnf = entities_[entIdx];
             
             if (compBuffer.Matches(tnf))
@@ -375,7 +406,7 @@ class EntityRegistry
         var compBuffer = GetCompBufferFromCompType<T>();
         if (compBuffer != null)
         {
-            EntIdx entIdx = uidsToIdxs_[entID];
+            EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
             EntTagsAndFlags tnf = entities_[entIdx];
 
             if (compBuffer.Matches(tnf))
@@ -390,7 +421,7 @@ class EntityRegistry
 
     public void RemoveAllComponents(EntUID entID)
     {
-        EntIdx entIdx = uidsToIdxs_[entID];
+        EntIdx entIdx = uidsToIdxs_.GetBfromA(entID);
         EntTagsAndFlags tnf = entities_[entIdx];
         foreach (var matcher in MatchersFromFlags(tnf))
             matcher.RemoveFromEntIdx(entIdx);
@@ -424,9 +455,9 @@ class Program
         Console.WriteLine(registry_.GetEntityDebugData(entUID) + "\n");
     }
 
-    static void PrintCompBufsDebug()
+    static void PrintCompBufsDebug(bool detailed = false)
     {
-        Console.WriteLine(registry_.GetComponentBuffersDebugData() + "\n");
+        Console.WriteLine(registry_.GetComponentBuffersDebugData(detailed) + "\n");
     }
 
     static void Print(string s)
@@ -478,52 +509,94 @@ class Program
         PrintEntityDebug(entD);
 
         PrintRegistryDebug();
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Removing component");
         
         registry_.RemoveComponent<Velocity>(entA);
 
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Readding component");
 
         registry_.AddComponent(entA, new Velocity());
         
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Removing other");
 
         registry_.RemoveComponent<Transform>(entA);
 
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Readding other");
 
         registry_.AddComponent(entA, new Transform());
 
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Adding new to 2nd entity");
 
         registry_.AddComponent(entB, new Velocity());
 
         PrintEntityDebug(entB);
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
 
         Print("Removing all from 2nd entity");
 
         registry_.RemoveAllComponents(entB);
 
         PrintEntityDebug(entB);
-        PrintCompBufsDebug();
+        PrintCompBufsDebug(true);
         
         Print("Removing 3rd entity");
 
         registry_.DeleteEntity(entC);
         PrintRegistryDebug(true);
+        PrintCompBufsDebug(true);
 
-        //TODO remove entity - check if components got removed
+        Print("Removing 1st entity");
+
+        registry_.DeleteEntity(entA);
+        PrintRegistryDebug(true);
+        PrintCompBufsDebug(true);
+
+        Print("Creating new with components");
+
+        var entE = registry_.CreateEntity();
+        registry_.AddComponent(entE, new Transform());
+        registry_.AddComponent(entE, new Velocity());
+        PrintRegistryDebug(true);
+        PrintCompBufsDebug(true);
+
+        Print("Removing newly created entity");
+
+        registry_.DeleteEntity(entE);
+        PrintRegistryDebug(true);
+        PrintCompBufsDebug(true);
+
+        Print("Removing all");
+
+        registry_.AddComponent(entD, new Transform());
+        registry_.DeleteAll();
+        PrintRegistryDebug(true);
+        PrintCompBufsDebug();
+
+        //####################### LOOPS
+        // add a tonne of stuff
+        Print("Adding a ton of ents and comps");
+        for (int i = 0; i < 1000000; i++)
+        {
+            var id = registry_.CreateEntity();
+            registry_.AddComponent(id, new Transform());
+            registry_.AddComponent(id, new Velocity());
+        }
+
+        PrintRegistryDebug();
+        PrintCompBufsDebug();
+
+
+
         //TODO loop components single matcher
         //TODO loop components multiple matchers
         //TODO loop components exclusion matchers
