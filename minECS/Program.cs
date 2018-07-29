@@ -117,7 +117,7 @@ class TagsMan
     public TagsMan()
     {
         for (int i = 0; i < 32; i++)
-            tags_[i] = new HashSet<EntIdx>(2 << 10);
+            tags_[i] = new HashSet<EntIdx>(1 << 10);
     }
 
     private static int TagToArrIdx(Tag tag)
@@ -164,7 +164,7 @@ public class MappedBuffer<TKey, TData> : IDebugData
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
-    public MappedBuffer(int initialSize = 2 << 10)
+    public MappedBuffer(int initialSize = 1 << 10)
     {
         data_ = new TData[initialSize];
         keys_ = new TKey[initialSize];
@@ -192,7 +192,7 @@ public class MappedBuffer<TKey, TData> : IDebugData
         return keysToIndices_[key];
     }
 
-    protected int TryGetIndexFromKey(TKey key)
+    public int TryGetIndexFromKey(TKey key)
     {
         if (keysToIndices_.TryGetValue(key, out int value))
         {
@@ -257,7 +257,7 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
 {
     public uint Flag { get; private set; }
 
-    internal void __SetFlagInternal(int bufferIndex)
+    public ComponentBuffer(int bufferIndex, int initialSize = 1024) : base(initialSize)
     {
         Flag = 1u << bufferIndex;
     }
@@ -281,11 +281,13 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
 
 }
 
-class EntityRegistry : MappedBuffer<EntUID, EntityData>
+partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
     
     //    public TagsMan TagsManager = new TagsMan();
+
+    public EntityRegistry(int initialSize = 1<<10) : base(initialSize) {}
 
     public EntUID CreateEntity(EntTags tags = 0)
     {
@@ -330,7 +332,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     //components
     private int currentComponentBuffersIndex_ = 0;
-    private readonly IComponentMatcher[] componentBuffers_ = new IComponentMatcher[sizeof(EntFlags)];
+    private readonly IComponentMatcher[] componentBuffers_ = new IComponentMatcher[sizeof(EntFlags)*8];
 
     public string GetComponentBuffersDebugData(bool detailed = false)
     {
@@ -368,9 +370,8 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public void CreateComponentBuffer<T>() where T : struct
     {
-        var buffer = new ComponentBuffer<T>();
+        var buffer = new ComponentBuffer<T>(currentComponentBuffersIndex_);
         componentBuffers_[currentComponentBuffersIndex_] = buffer;
-        buffer.__SetFlagInternal(currentComponentBuffersIndex_);
         currentComponentBuffersIndex_++;
     }
 
@@ -423,34 +424,7 @@ class EntityRegistry : MappedBuffer<EntUID, EntityData>
         entData.Flags = 0;
     }
 
-    public delegate void ProcessComponent<T1>(EntIdx entIdx, ref T1 component);
-    public delegate void ProcessComponent<T1,T2>(EntIdx entIdx, ref T1 component, ref T2 component2);
-
-    public void Loop<T1>(ProcessComponent<T1> loopAction) where T1 : struct
-    {
-        var cb = GetComponentBufferFromComponentType<T1>();
-        var buffers = cb.__GetBuffers();
-        var entIdxs = buffers.keys;
-        var components = buffers.data;
-
-        for (var i = 0; i < components.Length; i++)
-        {
-            ref T1 component = ref components[i];
-            EntIdx entIdx = entIdxs[i];
-            loopAction(entIdx, ref component);
-        }
-    }
-//
-//    public void Loop<T1,T2>(ProcessComponent<T1,T2> loopAction, EntTagsAndFlags tnf = 0)
-//        where T1 : struct where T2 : struct
-//    {
-//        for (var i = 0; i < components_.Count; i++)
-//        {
-//            T comp = components_[i];
-//            EntIdx eIdx = entIdxsToComponentsIdxs_.GetAfromB(i);
-//            loopAction(ref comp, eIdx);
-//        }
-//    }
+    //TODO filter loops by tag too
 
 }
 
@@ -497,7 +471,7 @@ class Program
         //create registry
         Print("Creating Registry");
 
-        registry_ = new EntityRegistry();
+        registry_ = new EntityRegistry(1<<20);
 
         PrintRegistryDebug();
 
@@ -611,11 +585,13 @@ class Program
         Print("Adding a ton of ents and comps");
 
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 1000000; i++)
+        for (int i = 0; i < 5000000; i++)
         {
             var id = registry_.CreateEntity();
-            registry_.AddComponent(id, new Transform());
-            registry_.AddComponent(id, new Velocity());
+            if (i % 2 == 0)
+                registry_.AddComponent(id, new Transform());
+            if (i % 5 == 0)
+                registry_.AddComponent(id, new Velocity());
         }
         Print($"Took {sw.ElapsedMilliseconds}");
 
@@ -623,9 +599,7 @@ class Program
         PrintCompBufsDebug();
 
         Print("Looping a ton of ents and comp");
-
-        Console.ReadKey();
-
+        
         sw = Stopwatch.StartNew();
         registry_.Loop((EntIdx entIdx, ref Transform transform) =>
         {
@@ -633,7 +607,14 @@ class Program
         });
         Print($"Took {sw.ElapsedMilliseconds}");
 
+        Print("Looping a ton of ents and 2 comps");
 
+        sw = Stopwatch.StartNew();
+        registry_.Loop((EntIdx entIdx, ref Transform transform, ref Velocity vel) =>
+        {
+            vel.Linear = transform.Position;
+        });
+        Print($"Took {sw.ElapsedMilliseconds}");
 
         //TODO loop components multiple matchers
         //TODO loop components exclusion matchers
