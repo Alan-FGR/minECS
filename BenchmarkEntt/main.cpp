@@ -21,11 +21,11 @@ int main()
 {
     printf("starting tests...\n");
 
-    DefaultRegistry registry;
+    Registry<std::uint64_t> registry;
 
     auto timePoint = TIME_HERE;
     printf("creating a ton of entities...\n");
-    for (int i = 0; i < 1<<20; ++i)
+    for (int i = 0; i < (1<<22); ++i)
     {
         auto entity = registry.create();
         registry.assign<Position>(entity);
@@ -34,6 +34,9 @@ int main()
     auto elapsed = ELAPSEDMS(timePoint);
     printf("elapsed: %d\n", elapsed);
 
+    for (int i = 0; i < 10; ++i)
+    {
+        
     timePoint = TIME_HERE;
     printf("looping a ton of entities, 1 comp...\n");
     registry.view<Position>().each([](auto ent, Position& pos)
@@ -51,6 +54,8 @@ int main()
     });
     elapsed = ELAPSEDMS(timePoint);
     printf("elapsed: %d\n", elapsed);
+
+    }
 
     printf("finished tests...\n");
     getchar();

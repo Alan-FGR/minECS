@@ -583,7 +583,7 @@ class Program
         Print("Adding a ton of ents and comps");
         Console.ReadKey();
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 1<<20; i++)
+        for (int i = 0; i < 1<<22; i++)
         {
             var id = registry_.CreateEntity();
             registry_.AddComponent(id, new Position());
