@@ -368,9 +368,9 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
         }
     }
 
-    public void CreateComponentBuffer<T>() where T : struct
+    public void CreateComponentBuffer<T>(int initialSize = 1<<10) where T : struct
     {
-        var buffer = new ComponentBuffer<T>(currentComponentBuffersIndex_);
+        var buffer = new ComponentBuffer<T>(currentComponentBuffersIndex_, initialSize);
         componentBuffers_[currentComponentBuffersIndex_] = buffer;
         currentComponentBuffersIndex_++;
     }
@@ -430,17 +430,16 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
 class Program
 {
-    struct Transform
+    struct Position
     {
-        public Vector3 Scale;
-        public Quaternion Rotation;
-        public Vector3 Position;
+        public long x;
+        public long y;
     }
 
     struct Velocity
     {
-        public Vector3 Linear;
-        public Vector3 Angular;
+        public long x;
+        public long y;
     }
 
     static void PrintRegistryDebug(bool detailed = false)
@@ -467,19 +466,18 @@ class Program
 
     static void Main(string[] args)
     {
-
         //create registry
         Print("Creating Registry");
 
-        registry_ = new EntityRegistry(1<<20);
+        registry_ = new EntityRegistry(1<<22);
 
         PrintRegistryDebug();
 
         //create and register some component buffers
         Print("Creating Component Buffers");
 
-        registry_.CreateComponentBuffer<Transform>();
-        registry_.CreateComponentBuffer<Velocity>();
+        registry_.CreateComponentBuffer<Position>(1<<22);
+        registry_.CreateComponentBuffer<Velocity>(1<<22);
 
         PrintRegistryDebug();
         PrintCompBufsDebug();
@@ -488,13 +486,13 @@ class Program
         Print("Creating 4 Entities");
 
         var entA = registry_.CreateEntity();
-        registry_.AddComponent(entA, new Transform());
+        registry_.AddComponent(entA, new Position());
         registry_.AddComponent(entA, new Velocity());
         
         PrintEntityDebug(entA);
 
         var entB = registry_.CreateEntity();
-        registry_.AddComponent(entB, new Transform());
+        registry_.AddComponent(entB, new Position());
 
         PrintEntityDebug(entB);
 
@@ -524,13 +522,13 @@ class Program
 
         Print("Removing other");
 
-        registry_.RemoveComponent<Transform>(entA);
+        registry_.RemoveComponent<Position>(entA);
 
         PrintCompBufsDebug(true);
 
         Print("Readding other");
 
-        registry_.AddComponent(entA, new Transform());
+        registry_.AddComponent(entA, new Position());
 
         PrintCompBufsDebug(true);
 
@@ -563,8 +561,8 @@ class Program
         Print("Creating new with components");
 
         var entE = registry_.CreateEntity();
-        registry_.AddComponent(entE, new Transform());
-        registry_.AddComponent(entE, new Velocity());
+        registry_.AddComponent(entE, new Position());
+        registry_.AddComponent(entE, new Velocity{x=0,y=1});
         PrintRegistryDebug(true);
         PrintCompBufsDebug(true);
 
@@ -576,52 +574,51 @@ class Program
 
         Print("Adding component to 4th entity");
 
-        registry_.AddComponent(entD, new Transform());
+        registry_.AddComponent(entD, new Position());
         PrintRegistryDebug(true);
         PrintCompBufsDebug(true);
 
         //####################### LOOPS
         // add a tonne of stuff
         Print("Adding a ton of ents and comps");
-
+        Console.ReadKey();
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 5000000; i++)
+        for (int i = 0; i < 1<<20; i++)
         {
             var id = registry_.CreateEntity();
-            if (i % 2 == 0)
-                registry_.AddComponent(id, new Transform());
-            if (i % 5 == 0)
-                registry_.AddComponent(id, new Velocity());
+            registry_.AddComponent(id, new Position());
+            registry_.AddComponent(id, new Velocity { x = 0, y = 1 });
         }
         Print($"Took {sw.ElapsedMilliseconds}");
-
+        Console.ReadKey();
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
+        for (int i = 0; i < 10; i++)
+        {
+            
         Print("Looping a ton of ents and comp");
         
         sw = Stopwatch.StartNew();
-        registry_.Loop((EntIdx entIdx, ref Transform transform) =>
+        registry_.Loop((EntIdx entIdx, ref Position transform) =>
         {
-            transform.Position = Vector3.One;
+            transform.x = 10;
         });
         Print($"Took {sw.ElapsedMilliseconds}");
 
         Print("Looping a ton of ents and 2 comps");
 
         sw = Stopwatch.StartNew();
-        registry_.Loop((EntIdx entIdx, ref Transform transform, ref Velocity vel) =>
+        registry_.Loop((EntIdx entIdx, ref Position transform, ref Velocity vel) =>
         {
-            vel.Linear = transform.Position;
+            transform.y += vel.y;
         });
         Print($"Took {sw.ElapsedMilliseconds}");
 
-        //TODO loop components multiple matchers
+        }
+        
         //TODO loop components exclusion matchers
         //TODO sort components (based on EntIdxs)
-
-
-
 
 
         Console.ReadKey();
