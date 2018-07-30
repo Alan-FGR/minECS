@@ -19,7 +19,7 @@ partial class EntityRegistry
     public void Loop<T1>(ProcessComponent<T1> loopAction)
     where T1 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
@@ -32,43 +32,18 @@ partial class EntityRegistry
             loopAction(entIdx, ref component);
         }//end for components
     }//end function
-    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
-    where T1 : struct where T2 : struct
-    {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
-        var buffers = componentBuffer.__GetBuffers();
-        var entIdxs = buffers.keys;
-        var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
-        var matcher2Buffers = matcher2.__GetBuffers();
-        for (var i = components.Length - 1; i >= 0; i--)
-        {
-            ref T1 component = ref components[i];
-            int entIdx = entIdxs[i];
-            ref EntityData entityData = ref GetDataFromIndex(entIdx);
-            if (matcher2.Matches(entityData.Flags))
-            {
-                int indexInMatcher2 = matcher2.TryGetIndexFromKey(entIdx);
-                if (indexInMatcher2 >= 0)
-                {
-                    ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
-                    loopAction(entIdx, ref component, ref component2);
-                }//end if indexInMatcher2
-            }//end if matcher2.Matches
-        }//end for components
-    }//end function
     public void Loop<T1, T2, T3>(ProcessComponent<T1, T2, T3> loopAction)
     where T1 : struct where T2 : struct where T3 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -97,16 +72,16 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4>(ProcessComponent<T1, T2, T3, T4> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -143,18 +118,18 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5>(ProcessComponent<T1, T2, T3, T4, T5> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -199,20 +174,20 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6>(ProcessComponent<T1, T2, T3, T4, T5, T6> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -265,22 +240,22 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -341,24 +316,24 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -427,26 +402,26 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -523,28 +498,28 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -629,30 +604,30 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -745,32 +720,32 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct where T12 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        var matcher12 = GetComponentBufferFromComponentType<T12>();
+        var matcher12 = GetComponentBuffer<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -871,34 +846,34 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct where T12 : struct where T13 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        var matcher12 = GetComponentBufferFromComponentType<T12>();
+        var matcher12 = GetComponentBuffer<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
-        var matcher13 = GetComponentBufferFromComponentType<T13>();
+        var matcher13 = GetComponentBuffer<T13>();
         var matcher13Buffers = matcher13.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -1007,36 +982,36 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct where T12 : struct where T13 : struct where T14 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        var matcher12 = GetComponentBufferFromComponentType<T12>();
+        var matcher12 = GetComponentBuffer<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
-        var matcher13 = GetComponentBufferFromComponentType<T13>();
+        var matcher13 = GetComponentBuffer<T13>();
         var matcher13Buffers = matcher13.__GetBuffers();
-        var matcher14 = GetComponentBufferFromComponentType<T14>();
+        var matcher14 = GetComponentBuffer<T14>();
         var matcher14Buffers = matcher14.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -1153,38 +1128,38 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct where T12 : struct where T13 : struct where T14 : struct where T15 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        var matcher12 = GetComponentBufferFromComponentType<T12>();
+        var matcher12 = GetComponentBuffer<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
-        var matcher13 = GetComponentBufferFromComponentType<T13>();
+        var matcher13 = GetComponentBuffer<T13>();
         var matcher13Buffers = matcher13.__GetBuffers();
-        var matcher14 = GetComponentBufferFromComponentType<T14>();
+        var matcher14 = GetComponentBuffer<T14>();
         var matcher14Buffers = matcher14.__GetBuffers();
-        var matcher15 = GetComponentBufferFromComponentType<T15>();
+        var matcher15 = GetComponentBuffer<T15>();
         var matcher15Buffers = matcher15.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {
@@ -1309,40 +1284,40 @@ partial class EntityRegistry
     public void Loop<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(ProcessComponent<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> loopAction)
     where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where T7 : struct where T8 : struct where T9 : struct where T10 : struct where T11 : struct where T12 : struct where T13 : struct where T14 : struct where T15 : struct where T16 : struct
     {
-        var componentBuffer = GetComponentBufferFromComponentType<T1>();
+        var componentBuffer = GetComponentBuffer<T1>();
         var buffers = componentBuffer.__GetBuffers();
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        var matcher2 = GetComponentBufferFromComponentType<T2>();
+        var matcher2 = GetComponentBuffer<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher3 = GetComponentBufferFromComponentType<T3>();
+        var matcher3 = GetComponentBuffer<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        var matcher4 = GetComponentBufferFromComponentType<T4>();
+        var matcher4 = GetComponentBuffer<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        var matcher5 = GetComponentBufferFromComponentType<T5>();
+        var matcher5 = GetComponentBuffer<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        var matcher6 = GetComponentBufferFromComponentType<T6>();
+        var matcher6 = GetComponentBuffer<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        var matcher7 = GetComponentBufferFromComponentType<T7>();
+        var matcher7 = GetComponentBuffer<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        var matcher8 = GetComponentBufferFromComponentType<T8>();
+        var matcher8 = GetComponentBuffer<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        var matcher9 = GetComponentBufferFromComponentType<T9>();
+        var matcher9 = GetComponentBuffer<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        var matcher10 = GetComponentBufferFromComponentType<T10>();
+        var matcher10 = GetComponentBuffer<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        var matcher11 = GetComponentBufferFromComponentType<T11>();
+        var matcher11 = GetComponentBuffer<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        var matcher12 = GetComponentBufferFromComponentType<T12>();
+        var matcher12 = GetComponentBuffer<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
-        var matcher13 = GetComponentBufferFromComponentType<T13>();
+        var matcher13 = GetComponentBuffer<T13>();
         var matcher13Buffers = matcher13.__GetBuffers();
-        var matcher14 = GetComponentBufferFromComponentType<T14>();
+        var matcher14 = GetComponentBuffer<T14>();
         var matcher14Buffers = matcher14.__GetBuffers();
-        var matcher15 = GetComponentBufferFromComponentType<T15>();
+        var matcher15 = GetComponentBuffer<T15>();
         var matcher15Buffers = matcher15.__GetBuffers();
-        var matcher16 = GetComponentBufferFromComponentType<T16>();
+        var matcher16 = GetComponentBuffer<T16>();
         var matcher16Buffers = matcher16.__GetBuffers();
         for (var i = components.Length - 1; i >= 0; i--)
         {

@@ -3,7 +3,7 @@
 #include "entt.hpp";
 
 #define TIME_HERE std::chrono::high_resolution_clock::now();
-#define ELAPSEDMS(time_point) (std::uint32_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-time_point).count());
+#define ELAPSEDuS(time_point) (std::uint32_t)(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-time_point).count());
 
 struct Position {
     std::uint64_t x;
@@ -25,13 +25,13 @@ int main()
 
     auto timePoint = TIME_HERE;
     printf("creating a ton of entities...\n");
-    for (int i = 0; i < (1<<22); ++i)
+    for (int i = 0; i < (1<<19); ++i)
     {
         auto entity = registry.create();
         registry.assign<Position>(entity);
         registry.assign<Velocity>(entity, 0ul, 1ul);
     }
-    auto elapsed = ELAPSEDMS(timePoint);
+    auto elapsed = ELAPSEDuS(timePoint);
     printf("elapsed: %d\n", elapsed);
 
     for (int i = 0; i < 10; ++i)
@@ -43,7 +43,7 @@ int main()
     {
         pos.x = 10;
     });
-    elapsed = ELAPSEDMS(timePoint);
+    elapsed = ELAPSEDuS(timePoint);
     printf("elapsed: %d\n", elapsed);
 
     timePoint = TIME_HERE;
@@ -52,7 +52,7 @@ int main()
     {
         pos.y += vel.y;
     });
-    elapsed = ELAPSEDMS(timePoint);
+    elapsed = ELAPSEDuS(timePoint);
     printf("elapsed: %d\n", elapsed);
 
     }

@@ -39,7 +39,7 @@ namespace CodeGenerator
 
         static void Main(string[] args)
         {
-            int depth = 18;
+            int depth = 8;
 
             //generate loops code since there's no variadic templates / generics :(
             var dels = new List<string>();
@@ -70,7 +70,7 @@ namespace CodeGenerator
                 def += String.Join(" ", typeList.Select(x => "where "+x+" : struct"))+"\r\n";
                 def += "{\r\n";
 
-                def += "var componentBuffer = GetComponentBufferFromComponentType<T1>();\r\n" +
+                def += "var componentBuffer = GetComponentBuffer<T1>();\r\n" +
                        "var buffers = componentBuffer.__GetBuffers();\r\n" +
                        "var entIdxs = buffers.keys;\r\n" +
                        "var components = buffers.data;\r\n";
@@ -79,7 +79,7 @@ namespace CodeGenerator
 
                 for (int j = 2; j < i; j++)
                 {
-                    nestedLines.Add($"var matcher{j} = GetComponentBufferFromComponentType<T{j}>();");
+                    nestedLines.Add($"var matcher{j} = GetComponentBuffer<T{j}>();");
                     nestedLines.Add($"var matcher{j}Buffers = matcher{j}.__GetBuffers();");
                 }
 

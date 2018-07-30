@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define WITH_VIEWS
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -9,7 +11,16 @@ using EntUID = System.UInt64; // ain't no C++ :(
 using EntFlags = System.UInt64; // component flags
 using EntTags = System.UInt64;
 
+
 //TODO use faster collections for buffers (wrapped array/unmanagedcollection)
+
+static class StopWatchExtensions
+{
+    public static float ElapsedMicroseconds(this Stopwatch sw)
+    {
+        return sw.ElapsedTicks / (Stopwatch.Frequency / 1000000f);
+    }
+}
 
 static class BitUtils
 {
@@ -164,6 +175,11 @@ public class MappedBuffer<TKey, TData> : IDebugData
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
+    public delegate void EntryAdded(TKey key, int index);
+    public delegate void EntryRemoved(TKey removedKey, int removedIndex, TKey keyMovedThere, int indexOfDataMovedThere); //indexOfDataMovedThere is normally last
+    internal event EntryAdded OnAddEntry;
+    internal event EntryRemoved OnRemoveEntry;
+
     public MappedBuffer(int initialSize = 1 << 10)
     {
         data_ = new TData[initialSize];
@@ -211,7 +227,7 @@ public class MappedBuffer<TKey, TData> : IDebugData
         //todo check tkey existence
         int currentIndex = Count;
 
-        if (data_.Length <= currentIndex)
+        if (data_.Length <= currentIndex) //expand buffer as needed
         {
             var newData = new TData[data_.Length*2];
             var newKeys = new TKey[data_.Length*2];
@@ -224,6 +240,8 @@ public class MappedBuffer<TKey, TData> : IDebugData
         data_[currentIndex] = data;
         keys_[currentIndex] = key;
         keysToIndices_[key] = currentIndex;
+
+        OnAddEntry?.Invoke(key, currentIndex);
 
         Count++;
     }
@@ -240,6 +258,8 @@ public class MappedBuffer<TKey, TData> : IDebugData
         keysToIndices_[lastKey] = entryIndex; //update index of last key
         keysToIndices_.Remove(key);
 
+        OnRemoveEntry?.Invoke(key, entryIndex, lastKey, lastIndex);
+
         Count--;
         return (entryIndex, removedData);
     }
@@ -255,16 +275,16 @@ public class MappedBuffer<TKey, TData> : IDebugData
 class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
     where T : struct
 {
-    public uint Flag { get; private set; }
+    public readonly uint flag;
 
     public ComponentBuffer(int bufferIndex, int initialSize = 1<<10) : base(initialSize)
     {
-        Flag = 1u << bufferIndex;
+        flag = 1u << bufferIndex;
     }
 
     public bool Matches(EntFlags flags)
     {
-        return (flags & Flag) != 0;
+        return (flags & flag) != 0;
     }
 
     public void RemoveEntIdx(EntIdx index)
@@ -275,7 +295,7 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
     public override string GetDebugData(bool detailed)
     {
         return
-        $"  Flag: {Convert.ToString(Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
+        $"  Flag: {Convert.ToString(flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
         base.GetDebugData(detailed);
     }
 
@@ -347,7 +367,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
         return s;
     }
 
-    private ComponentBuffer<T> GetComponentBufferFromComponentType<T>() where T : struct //TODO use a dict of comp types?
+    private ComponentBuffer<T> GetComponentBuffer<T>() where T : struct //TODO use a dict of comp types?
     {
         for (var i = 0; i < currentComponentBuffersIndex_; i++)
         {
@@ -377,7 +397,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public bool AddComponent<T>(EntUID entID, T component) where T : struct
     {
-        var compBuffer = GetComponentBufferFromComponentType<T>();
+        var compBuffer = GetComponentBuffer<T>();
         if (compBuffer != null)
         {
             EntIdx entIdx = GetIndexFromKey(entID);
@@ -390,7 +410,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
                 return false;
             #endif
 
-            entData.Flags |= compBuffer.Flag;
+            entData.Flags |= compBuffer.flag;
             compBuffer.AddEntry(entIdx, component);
             return true;
         }
@@ -399,7 +419,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     public bool RemoveComponent<T>(EntUID entID) where T : struct
     {
-        var compBuffer = GetComponentBufferFromComponentType<T>();
+        var compBuffer = GetComponentBuffer<T>();
         if (compBuffer != null)
         {
             EntIdx entIdx = GetIndexFromKey(entID);
@@ -407,7 +427,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
             if (compBuffer.Matches(entData.Flags))
             {
-                entData.Flags ^= compBuffer.Flag;
+                entData.Flags ^= compBuffer.flag;
                 compBuffer.RemoveEntIdx(entIdx);
                 return true;
             }
@@ -425,6 +445,60 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
     }
 
     //TODO filter loops by tag too
+
+    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
+        where T1 : struct where T2 : struct
+    {
+        var componentBuffer = GetComponentBuffer<T1>();
+        var buffers = componentBuffer.__GetBuffers();
+        var entIdxs = buffers.keys;
+        var components = buffers.data;
+
+        var matcher2 = GetComponentBuffer<T2>();
+        var matcher2Buffers = matcher2.__GetBuffers();
+
+        for (var i = components.Length - 1; i >= 0; i--)
+        {
+            ref T1 component = ref components[i];
+            int entIdx = entIdxs[i];
+            ref EntityData entityData = ref GetDataFromIndex(entIdx);
+            if ((matcher2.flag & entityData.Flags) != 0)
+            {
+                if (matcher2Buffers.k2i.TryGetValue(entIdx, out int indexInMatcher2))
+                {
+                    ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
+                    loopAction(entIdx, ref component, ref component2);
+                }//end if indexInMatcher2
+            }//end if matcher2.Matches
+        }//end for components
+    }//end function
+
+    //public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
+    //    where T1 : struct where T2 : struct
+    //{
+    //    var componentBuffer = GetComponentBufferFromComponentType<T1>();
+    //    var buffers = componentBuffer.__GetBuffers();
+    //    var entIdxs = buffers.keys;
+    //    var components = buffers.data;
+
+    //    var matcher2 = GetComponentBufferFromComponentType<T2>();
+    //    var matcher2Buffers = matcher2.__GetBuffers();
+    //    for (var i = components.Length - 1; i >= 0; i--)
+    //    {
+    //        ref T1 component = ref components[i];
+    //        int entIdx = entIdxs[i];
+    //        ref EntityData entityData = ref GetDataFromIndex(entIdx);
+    //        if (matcher2.Matches(entityData.Flags))
+    //        {
+    //            int indexInMatcher2 = matcher2.TryGetIndexFromKey(entIdx);
+    //            if (indexInMatcher2 >= 0)
+    //            {
+    //                ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
+    //                loopAction(entIdx, ref component, ref component2);
+    //            }//end if indexInMatcher2
+    //        }//end if matcher2.Matches
+    //    }//end for components
+    //}//end function
 
 }
 
@@ -482,129 +556,129 @@ class Program
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
-        //create entities and components
-        Print("Creating 4 Entities");
+        ////create entities and components
+        //Print("Creating 4 Entities");
 
-        var entA = registry_.CreateEntity();
-        registry_.AddComponent(entA, new Position());
-        registry_.AddComponent(entA, new Velocity());
+        //var entA = registry_.CreateEntity();
+        //registry_.AddComponent(entA, new Position());
+        //registry_.AddComponent(entA, new Velocity());
         
-        PrintEntityDebug(entA);
+        //PrintEntityDebug(entA);
 
-        var entB = registry_.CreateEntity();
-        registry_.AddComponent(entB, new Position());
+        //var entB = registry_.CreateEntity();
+        //registry_.AddComponent(entB, new Position());
 
-        PrintEntityDebug(entB);
+        //PrintEntityDebug(entB);
 
-        var entC = registry_.CreateEntity();
-        registry_.AddComponent(entC, new Velocity());
+        //var entC = registry_.CreateEntity();
+        //registry_.AddComponent(entC, new Velocity());
 
-        PrintEntityDebug(entC);
+        //PrintEntityDebug(entC);
 
-        var entD = registry_.CreateEntity();
+        //var entD = registry_.CreateEntity();
 
-        PrintEntityDebug(entD);
+        //PrintEntityDebug(entD);
 
-        PrintRegistryDebug();
-        PrintCompBufsDebug(true);
+        //PrintRegistryDebug();
+        //PrintCompBufsDebug(true);
 
-        Print("Removing component");
+        //Print("Removing component");
         
-        registry_.RemoveComponent<Velocity>(entA);
+        //registry_.RemoveComponent<Velocity>(entA);
 
-        PrintCompBufsDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Readding component");
+        //Print("Readding component");
 
-        registry_.AddComponent(entA, new Velocity());
+        //registry_.AddComponent(entA, new Velocity());
         
-        PrintCompBufsDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Removing other");
+        //Print("Removing other");
 
-        registry_.RemoveComponent<Position>(entA);
+        //registry_.RemoveComponent<Position>(entA);
 
-        PrintCompBufsDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Readding other");
+        //Print("Readding other");
 
-        registry_.AddComponent(entA, new Position());
+        //registry_.AddComponent(entA, new Position());
 
-        PrintCompBufsDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Adding new to 2nd entity");
+        //Print("Adding new to 2nd entity");
 
-        registry_.AddComponent(entB, new Velocity());
+        //registry_.AddComponent(entB, new Velocity());
 
-        PrintEntityDebug(entB);
-        PrintCompBufsDebug(true);
+        //PrintEntityDebug(entB);
+        //PrintCompBufsDebug(true);
 
-        Print("Removing all from 2nd entity");
+        //Print("Removing all from 2nd entity");
 
-        registry_.RemoveAllComponents(entB);
+        //registry_.RemoveAllComponents(entB);
 
-        PrintEntityDebug(entB);
-        PrintCompBufsDebug(true);
+        //PrintEntityDebug(entB);
+        //PrintCompBufsDebug(true);
         
-        Print("Removing 3rd entity");
+        //Print("Removing 3rd entity");
 
-        registry_.DeleteEntity(entC);
-        PrintRegistryDebug(true);
-        PrintCompBufsDebug(true);
+        //registry_.DeleteEntity(entC);
+        //PrintRegistryDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Removing 1st entity");
+        //Print("Removing 1st entity");
 
-        registry_.DeleteEntity(entA);
-        PrintRegistryDebug(true);
-        PrintCompBufsDebug(true);
+        //registry_.DeleteEntity(entA);
+        //PrintRegistryDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Creating new with components");
+        //Print("Creating new with components");
 
-        var entE = registry_.CreateEntity();
-        registry_.AddComponent(entE, new Position());
-        registry_.AddComponent(entE, new Velocity{x=0,y=1});
-        PrintRegistryDebug(true);
-        PrintCompBufsDebug(true);
+        //var entE = registry_.CreateEntity();
+        //registry_.AddComponent(entE, new Position());
+        //registry_.AddComponent(entE, new Velocity{x=0,y=1});
+        //PrintRegistryDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Removing newly created entity");
+        //Print("Removing newly created entity");
 
-        registry_.DeleteEntity(entE);
-        PrintRegistryDebug(true);
-        PrintCompBufsDebug(true);
+        //registry_.DeleteEntity(entE);
+        //PrintRegistryDebug(true);
+        //PrintCompBufsDebug(true);
 
-        Print("Adding component to 4th entity");
+        //Print("Adding component to 4th entity");
 
-        registry_.AddComponent(entD, new Position());
-        PrintRegistryDebug(true);
-        PrintCompBufsDebug(true);
+        //registry_.AddComponent(entD, new Position());
+        //PrintRegistryDebug(true);
+        //PrintCompBufsDebug(true);
 
         //####################### LOOPS
         // add a tonne of stuff
         Print("Adding a ton of ents and comps");
 //        Console.ReadKey();
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 1<<22; i++)
+        for (int i = 0; i < 1<<19; i++)
         {
             var id = registry_.CreateEntity();
             registry_.AddComponent(id, new Position());
             registry_.AddComponent(id, new Velocity { x = 0, y = 1 });
         }
-        Print($"Took {sw.ElapsedMilliseconds}");
+        Print($"Took {sw.ElapsedMicroseconds()}");
 //        Console.ReadKey();
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
-//        Console.ReadKey();
+        Console.ReadKey();
         for (int i = 0; i < 10; i++)
         {
-            
-        Print("Looping a ton of ents and comp");
-        sw = Stopwatch.StartNew();
-        registry_.Loop((EntIdx entIdx, ref Position transform) =>
-        {
-            transform.x = 10;
-        });
-        Print($"Took {sw.ElapsedMilliseconds}");
+
+        //Print("Looping a ton of ents and comp");
+        //sw = Stopwatch.StartNew();
+        //registry_.Loop((EntIdx entIdx, ref Position transform) =>
+        //{
+        //    transform.x = 10;
+        //});
+        //Print($"Took {sw.ElapsedMicroseconds()}");
 
         Print("Looping a ton of ents and 2 comps");
 
@@ -613,7 +687,7 @@ class Program
         {
             transform.y += vel.y;
         });
-        Print($"Took {sw.ElapsedMilliseconds}");
+        Print($"Took {sw.ElapsedMicroseconds()}");
 
         }
         
