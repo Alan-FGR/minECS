@@ -257,7 +257,7 @@ class ComponentBuffer<T> : MappedBuffer<EntIdx, T>, IComponentMatcher
 {
     public uint Flag { get; private set; }
 
-    public ComponentBuffer(int bufferIndex, int initialSize = 1024) : base(initialSize)
+    public ComponentBuffer(int bufferIndex, int initialSize = 1<<10) : base(initialSize)
     {
         Flag = 1u << bufferIndex;
     }
@@ -468,16 +468,16 @@ class Program
     {
         //create registry
         Print("Creating Registry");
-
-        registry_ = new EntityRegistry(1<<22);
+        
+        registry_ = new EntityRegistry(1<<16);
 
         PrintRegistryDebug();
 
         //create and register some component buffers
         Print("Creating Component Buffers");
 
-        registry_.CreateComponentBuffer<Position>(1<<22);
-        registry_.CreateComponentBuffer<Velocity>(1<<22);
+        registry_.CreateComponentBuffer<Position>(1<<16);
+        registry_.CreateComponentBuffer<Velocity>(1<<16);
 
         PrintRegistryDebug();
         PrintCompBufsDebug();
@@ -581,7 +581,7 @@ class Program
         //####################### LOOPS
         // add a tonne of stuff
         Print("Adding a ton of ents and comps");
-        Console.ReadKey();
+//        Console.ReadKey();
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 1<<22; i++)
         {
@@ -590,15 +590,15 @@ class Program
             registry_.AddComponent(id, new Velocity { x = 0, y = 1 });
         }
         Print($"Took {sw.ElapsedMilliseconds}");
-        Console.ReadKey();
+//        Console.ReadKey();
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
+//        Console.ReadKey();
         for (int i = 0; i < 10; i++)
         {
             
         Print("Looping a ton of ents and comp");
-        
         sw = Stopwatch.StartNew();
         registry_.Loop((EntIdx entIdx, ref Position transform) =>
         {

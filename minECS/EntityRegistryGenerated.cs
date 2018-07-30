@@ -24,7 +24,7 @@ partial class EntityRegistry
         var entIdxs = buffers.keys;
         var components = buffers.data;
 
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -42,7 +42,7 @@ partial class EntityRegistry
 
         var matcher2 = GetComponentBufferFromComponentType<T2>();
         var matcher2Buffers = matcher2.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -70,7 +70,7 @@ partial class EntityRegistry
         var matcher2Buffers = matcher2.__GetBuffers();
         var matcher3 = GetComponentBufferFromComponentType<T3>();
         var matcher3Buffers = matcher3.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -108,7 +108,7 @@ partial class EntityRegistry
         var matcher3Buffers = matcher3.__GetBuffers();
         var matcher4 = GetComponentBufferFromComponentType<T4>();
         var matcher4Buffers = matcher4.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -156,7 +156,7 @@ partial class EntityRegistry
         var matcher4Buffers = matcher4.__GetBuffers();
         var matcher5 = GetComponentBufferFromComponentType<T5>();
         var matcher5Buffers = matcher5.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -214,7 +214,7 @@ partial class EntityRegistry
         var matcher5Buffers = matcher5.__GetBuffers();
         var matcher6 = GetComponentBufferFromComponentType<T6>();
         var matcher6Buffers = matcher6.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -282,7 +282,7 @@ partial class EntityRegistry
         var matcher6Buffers = matcher6.__GetBuffers();
         var matcher7 = GetComponentBufferFromComponentType<T7>();
         var matcher7Buffers = matcher7.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -360,7 +360,7 @@ partial class EntityRegistry
         var matcher7Buffers = matcher7.__GetBuffers();
         var matcher8 = GetComponentBufferFromComponentType<T8>();
         var matcher8Buffers = matcher8.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -448,7 +448,7 @@ partial class EntityRegistry
         var matcher8Buffers = matcher8.__GetBuffers();
         var matcher9 = GetComponentBufferFromComponentType<T9>();
         var matcher9Buffers = matcher9.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -546,7 +546,7 @@ partial class EntityRegistry
         var matcher9Buffers = matcher9.__GetBuffers();
         var matcher10 = GetComponentBufferFromComponentType<T10>();
         var matcher10Buffers = matcher10.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -654,7 +654,7 @@ partial class EntityRegistry
         var matcher10Buffers = matcher10.__GetBuffers();
         var matcher11 = GetComponentBufferFromComponentType<T11>();
         var matcher11Buffers = matcher11.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -772,7 +772,7 @@ partial class EntityRegistry
         var matcher11Buffers = matcher11.__GetBuffers();
         var matcher12 = GetComponentBufferFromComponentType<T12>();
         var matcher12Buffers = matcher12.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -900,7 +900,7 @@ partial class EntityRegistry
         var matcher12Buffers = matcher12.__GetBuffers();
         var matcher13 = GetComponentBufferFromComponentType<T13>();
         var matcher13Buffers = matcher13.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -1038,7 +1038,7 @@ partial class EntityRegistry
         var matcher13Buffers = matcher13.__GetBuffers();
         var matcher14 = GetComponentBufferFromComponentType<T14>();
         var matcher14Buffers = matcher14.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -1186,7 +1186,7 @@ partial class EntityRegistry
         var matcher14Buffers = matcher14.__GetBuffers();
         var matcher15 = GetComponentBufferFromComponentType<T15>();
         var matcher15Buffers = matcher15.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];
@@ -1344,7 +1344,7 @@ partial class EntityRegistry
         var matcher15Buffers = matcher15.__GetBuffers();
         var matcher16 = GetComponentBufferFromComponentType<T16>();
         var matcher16Buffers = matcher16.__GetBuffers();
-        for (var i = 0; i < components.Length; i++)
+        for (var i = components.Length - 1; i >= 0; i--)
         {
             ref T1 component = ref components[i];
             int entIdx = entIdxs[i];

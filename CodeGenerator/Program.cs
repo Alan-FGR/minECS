@@ -84,7 +84,7 @@ namespace CodeGenerator
                 }
 
 
-                nestedLines.Add("for (var i = 0; i < components.Length; i++){");
+                nestedLines.Add("for (var i = components.Length - 1; i >= 0; i--){");
 
                 nestedLines.Add($"ref T1 component = ref components[i];");
                 nestedLines.Add($"int entIdx = entIdxs[i];");
