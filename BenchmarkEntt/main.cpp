@@ -21,7 +21,9 @@ int main()
 {
     printf("starting tests...\n");
 
-    Registry<std::uint64_t> registry;
+    Registry<std::uint32_t> registry;
+    registry.prepare<Position, Velocity>();
+    auto view = registry.view<Position, Velocity>(persistent_t{});
 
     auto timePoint = TIME_HERE;
     printf("creating a ton of entities...\n");
@@ -37,21 +39,23 @@ int main()
     for (int i = 0; i < 10; ++i)
     {
         
-    timePoint = TIME_HERE;
-    printf("looping a ton of entities, 1 comp...\n");
-    registry.view<Position>().each([](auto ent, Position& pos)
-    {
-        pos.x = 10;
-    });
-    elapsed = ELAPSEDuS(timePoint);
-    printf("elapsed: %d\n", elapsed);
+    //timePoint = TIME_HERE;
+    //printf("looping a ton of entities, 1 comp...\n");
+    //registry.view<Position>().each([](auto ent, Position& pos)
+    //{
+    //    pos.x = 10;
+    //});
+    //elapsed = ELAPSEDuS(timePoint);
+    //printf("elapsed: %d\n", elapsed);
 
     timePoint = TIME_HERE;
     printf("looping a ton of entities, 2 comp...\n");
-    registry.view<Position, Velocity>().each([](auto ent, Position& pos, Velocity& vel)
+
+    view.each([](auto ent, Position& pos, Velocity& vel)
     {
         pos.y += vel.y;
     });
+
     elapsed = ELAPSEDuS(timePoint);
     printf("elapsed: %d\n", elapsed);
 
