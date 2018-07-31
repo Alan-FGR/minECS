@@ -62,7 +62,7 @@ class Program
         //create registry
         Print("Creating Registry");
 
-        int preallocShift = 19;
+        int preallocShift = 14;
 
         registry_ = new EntityRegistry(1<<preallocShift);
 
@@ -207,9 +207,8 @@ class Program
         //####################### LOOPS
         // add a tonne of stuff
         Print("Adding a ton of ents and comps");
-//        Console.ReadKey();
         var sw = Stopwatch.StartNew();
-        for (int i = 0; i < 1<<19; i++)
+        for (int i = 0; i < 1<<14; i++)
         {
             var id = registry_.CreateEntity();
             registry_.AddComponent(id, new Position());
@@ -220,7 +219,9 @@ class Program
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
-        for (int i = 0; i < 10; i++)
+        Console.ReadKey();
+        sw = Stopwatch.StartNew();
+        for (int i = 0; i < 1000; i++)
         {
 
         //Print("Looping a ton of ents and comp");
@@ -231,16 +232,15 @@ class Program
         //});
         //Print($"Took {sw.ElapsedMicroseconds()}");
 
-        Print("Looping a ton of ents and 2 comps");
+        //Print("Looping a ton of ents and 2 comps");
 
-        sw = Stopwatch.StartNew();
         registry_.Loop((EntIdx entIdx, ref Velocity vel, ref Position pos) =>
         {
             pos.y += vel.y;
         });
-        Print($"Took {sw.ElapsedMicroseconds()}");
 
         }
+        Print($"Took {sw.ElapsedMicroseconds()/1000}");
         
         //TODO loop components exclusion matchers
         //TODO sort components (based on EntIdxs)

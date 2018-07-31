@@ -27,7 +27,7 @@ int main()
 
     auto timePoint = TIME_HERE;
     printf("creating a ton of entities...\n");
-    for (int i = 0; i < (1<<19); ++i)
+    for (int i = 0; i < (1<<14); ++i)
     {
         auto entity = registry.create();
         registry.assign<Position>(entity);

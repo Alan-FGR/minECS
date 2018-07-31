@@ -184,7 +184,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
             int entIdx = entIdxs[i];
             //ref EntityData entityData = ref GetDataFromIndex(entIdx);
             var matcher2SyncedIndex = syncedIndices[i];
-            if(matcher2SyncedIndex >= 0)
+            if (matcher2SyncedIndex >= 0)
             {
                 ref T2 component2 = ref matcher2Buffers.data[matcher2SyncedIndex];
                 loopAction(entIdx, ref component, ref component2);
@@ -195,12 +195,12 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
     //public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
     //    where T1 : struct where T2 : struct
     //{
-    //    var componentBuffer = GetComponentBufferFromComponentType<T1>();
+    //    var componentBuffer = GetComponentBuffer<T1>();
     //    var buffers = componentBuffer.__GetBuffers();
     //    var entIdxs = buffers.keys;
     //    var components = buffers.data;
 
-    //    var matcher2 = GetComponentBufferFromComponentType<T2>();
+    //    var matcher2 = GetComponentBuffer<T2>();
     //    var matcher2Buffers = matcher2.__GetBuffers();
     //    for (var i = components.Length - 1; i >= 0; i--)
     //    {
