@@ -83,31 +83,34 @@ class Program
 
 
 
-//        var e = registry_.CreateEntity();
-//        registry_.AddComponent(e, new Position());
-//        registry_.AddComponent(e, new Velocity { x = 0, y = 3 });
-//
-//        var e1 = registry_.CreateEntity();
-//        registry_.AddComponent(e1, new Position());
-//        //registry_.AddComponent(e1, new Velocity { x = 0, y = 1 });
-//
-//        var e2 = registry_.CreateEntity();
-//        registry_.AddComponent(e2, new Position());
-//        registry_.AddComponent(e2, new Velocity { x = 0, y = 5 });
-//
-//        var e3 = registry_.CreateEntity();
-//        registry_.AddComponent(e3, new Position());
-//        //registry_.AddComponent(e3, new Velocity { x = 0, y = 1 });
-//
-//        registry_.Loop((EntIdx entIdx, ref Velocity vel, ref Position pos) =>
-//        {
-//            pos.y += vel.y;
-//        });
+        var e = registry_.CreateEntity();
+        registry_.AddComponent(e, new Position());
+        registry_.AddComponent(e, new Velocity { x = 0, y = 3 });
+
+        var e1 = registry_.CreateEntity();
+        registry_.AddComponent(e1, new Position());
+        //registry_.AddComponent(e1, new Velocity { x = 0, y = 1 });
+
+        var e2 = registry_.CreateEntity();
+        registry_.AddComponent(e2, new Position());
+        registry_.AddComponent(e2, new Velocity { x = 0, y = 5 });
+
+        var e3 = registry_.CreateEntity();
+        registry_.AddComponent(e3, new Position());
+        //registry_.AddComponent(e3, new Velocity { x = 0, y = 1 });
+
+        registry_.Loop((EntIdx entIdx, ref Velocity vel, ref Position pos) =>
+        {
+            pos.y += vel.y;
+        });
+
+
+        Console.ReadKey();
+        return;
 
 
 
 
-        
         ////create entities and components
         //Print("Creating 4 Entities");
 

@@ -167,8 +167,8 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
         keysToIndices_[key] = currentIndex;
 
 #if VIEWS
-        OnAddEntry?.Invoke(key, currentIndex); //nullcheck, piping of vtable... todo explore options
-        foreach (var synced in syncedIndices_) //todo avoid ienumerator -- how? maybe nullcheck? drop dict?
+        OnAddEntry?.Invoke(key, currentIndex); //nullcheck, piping or vtable... todo explore options
+        foreach (var synced in syncedIndices_) //todo avoid ienumerator
         {
             int indexInOtherBuffer = synced.buffer.TryGetIndexFromKey(key); //todo mask flags?
             if (indexInOtherBuffer >= 0) // if index for key exists in other buffer
@@ -190,6 +190,7 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
         keys_[entryIndex] = keys_[lastIndex];
         keysToIndices_[lastKey] = entryIndex; //update index of last key
         keysToIndices_.Remove(key);
+        Count--;
 
 #if VIEWS
         OnRemoveEntry?.Invoke(key, entryIndex, lastKey, lastIndex);
@@ -197,7 +198,6 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
             synced.indicesMap[entryIndex] = -1;
 #endif
 
-        Count--;
         return (entryIndex, removedData);
     }
 

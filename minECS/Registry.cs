@@ -165,6 +165,8 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
 
     //TODO filter loops by tag too
 
+    //TODO in loop, sort buffers by entries count
+
     public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
         where T1 : struct where T2 : struct
     {
