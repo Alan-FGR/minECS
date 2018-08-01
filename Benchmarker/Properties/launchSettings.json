@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Benchmarker": {
+      "commandName": "Project",
+      "workingDirectory": "D:\\_k1n\\minECS\\Benchmarker\\bin\\Debug\\netcoreapp2.1"
+    }
+  }
+}

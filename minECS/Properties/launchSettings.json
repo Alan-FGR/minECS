@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "minECS": {
+      "commandName": "Project",
+      "commandLineArgs": "2 2"
+    }
+  }
+}

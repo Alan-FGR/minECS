@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <chrono>
-#include "entt.hpp";
+#include <string>
+#include <fstream>
+#include "entt.hpp"
 
 #define TIME_HERE std::chrono::high_resolution_clock::now();
 #define ELAPSEDuS(time_point) (std::uint32_t)(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-time_point).count());
@@ -17,50 +19,56 @@ struct Velocity {
 
 using namespace entt;
 
-int main()
+int main(int argc, char* argv[])
 {
-    printf("starting tests...\n");
+    int sizeShift = atoi(argv[1]); //int.TryParse(args[0], out int sizeShift);
+    int comp2Mod = atoi(argv[2]); //int.TryParse(args[1], out int comp2Mod);
 
-    Registry<std::uint32_t> registry;
-    registry.prepare<Position, Velocity>();
+    std::ofstream outFile;
+    outFile.open("results_EnTT_" + std::to_string(sizeShift) + "_" + std::to_string(comp2Mod) + ".txt"); //var outFile = new StreamWriter($"results_minECS_{sizeShift}_{comp2Mod}.txt");
+
+    //create registry
+    printf("Creating Registry\n"); //Console.WriteLine("Creating Registry");
+    Registry<std::uint64_t> registry; //var registry = new EntityRegistry(1 << sizeShift);
+
+    ////create and register some component buffers
+    //Console.WriteLine("Creating Component Buffers");
+    //var posBuffer = registry.CreateComponentBuffer<Position>(1 << sizeShift);
+    //var velBuffer = registry.CreateComponentBuffer<Velocity>(1 << sizeShift);
+    printf("Preparing Component Buffers\n");
+    registry.prepare<Position, Velocity>(); //velBuffer.SubscribeSyncBuffer(posBuffer);
     auto view = registry.view<Position, Velocity>(persistent_t{});
 
-    printf("creating a ton of entities...\n");
-    auto timePoint = TIME_HERE;
-    for (int i = 0; i < (1<<16); ++i)
+    //// add a tonne of stuff
+    printf("Adding a ton of ents and comps\n"); //Console.WriteLine("Adding a ton of ents and comps");
+    auto timePoint = TIME_HERE; //var sw = Stopwatch.StartNew();
+    for (int i = 0; i < (1 << sizeShift); ++i) //for (int i = 0; i < 1 << sizeShift; i++)
     {
-        auto entity = registry.create();
-        registry.assign<Position>(entity);
-        registry.assign<Velocity>(entity, 0ul, 1ul);
-    }
-    auto elapsed = ELAPSEDuS(timePoint);
-    printf("elapsed: %d\n", elapsed);
-
-    for (int i = 0; i < 10; ++i)
-    {
-        
-    //timePoint = TIME_HERE;
-    //printf("looping a ton of entities, 1 comp...\n");
-    //registry.view<Position>().each([](auto ent, Position& pos)
-    //{
-    //    pos.x = 10;
-    //});
-    //elapsed = ELAPSEDuS(timePoint);
-    //printf("elapsed: %d\n", elapsed);
-
-    printf("looping a ton of entities, 2 comp...\n");
-    timePoint = TIME_HERE;
-
-    view.each([](auto ent, Position& pos, Velocity& vel)
-    {
-        pos.y += vel.y;
-    });
-
-    elapsed = ELAPSEDuS(timePoint);
-    printf("elapsed: %d\n", elapsed);
-
+        auto entity = registry.create(); //    var id = registry.CreateEntity();
+        registry.assign<Position>(entity); //    registry.AddComponent(id, new Position());
+        if (i % comp2Mod == 0) // if (i % comp2Mod == 0)
+        registry.assign<Velocity>(entity, 0ul, 1ul); //    registry.AddComponent(id, new Velocity{ x = 0, y = 1 });
     }
 
-    printf("finished tests...\n");
-    getchar();
+    auto elapsed = ELAPSEDuS(timePoint); //var elapsed = sw.ElapsedMicroseconds();
+    printf("Took %d\n", elapsed); //Console.WriteLine($"Took {elapsed}");
+    outFile << "adding: " << elapsed << std::endl; //outFile.WriteLine($"adding: {elapsed}");
+
+    ////####################### LOOPS
+    for (int i = 0; i < 10; ++i) //for (int i = 0; i < 10; i++)
+    {
+        printf("Looping a ton of ents and 2 comps\n"); //    Console.WriteLine("Looping a ton of ents and 2 comps");
+        timePoint = TIME_HERE; //    sw = Stopwatch.StartNew();
+        view.each([](auto ent, Position& pos, Velocity& vel) //    registry.Loop((EntIdx entIdx, ref Velocity vel, ref Position pos) = >
+        {
+            pos.y += vel.y; // pos.y += vel.y;
+        });
+        elapsed = ELAPSEDuS(timePoint); //    elapsed = sw.ElapsedMicroseconds();
+        printf("Took %d\n", elapsed); //    Console.WriteLine($"Took {elapsed}");
+        outFile << "looping: " << elapsed << std::endl; //    outFile.WriteLine($"looping: {elapsed}");
+    }
+
+    outFile.close(); //outFile.Close();
+    //getchar(); //Console.ReadKey();
+
 }
