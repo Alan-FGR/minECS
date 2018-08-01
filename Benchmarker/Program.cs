@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define NATIVE
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -13,18 +14,31 @@ namespace Benchmarker
             List<string[]> results = new List<string[]>();
 
             Console.WriteLine("Running tests...");
+#if NATIVE
+            foreach (string command in new[] { "minECS.exe", "BenchmarkEntt.exe" })
+#else
             foreach (string command in new[] {"dotnet", "BenchmarkEntt.exe"})
-            foreach (string shift in new[] {"14", "16", "18", "20"})
+#endif
+                foreach (string shift in new[] {"14", "16", "18", "20"})
             foreach (string mods in new[] {"1", "2", "4"})
             {
                 Console.WriteLine($"Running {command}, Args {shift} {mods}");
                 var proc = new Process {StartInfo = new ProcessStartInfo(
-                    command, (command == "dotnet" ? "minECS.dll " : "") + $"{shift} {mods}")};
-                proc.Start();
+#if NATIVE
+                    command, $"{shift} {mods}")
+#else
+                    command, (command == "dotnet" ? "minECS.dll " : "") + $"{shift} {mods}")
+#endif
+                };
+                        proc.Start();
                 proc.WaitForExit();
 
+#if NATIVE
+                string test = (command == "minECS.exe" ? "minECS" : "EnTT");
+#else
                 string test = (command == "dotnet" ? "minECS" : "EnTT");
-                var lines = File.ReadAllLines("results_" + test + $"_{shift}_{mods}.txt");
+#endif
+                        var lines = File.ReadAllLines("results_" + test + $"_{shift}_{mods}.txt");
                 var result = lines.Where(x => x.Split(':')[0] == "looping").Select(x => Convert.ToSingle(x.Split(':')[1])).OrderBy(x => x).Take(3).Sum()/3f;
                 results.Add(new []{test,shift,mods,result.ToString("F0")});
             }
