@@ -25,9 +25,9 @@ int main()
     registry.prepare<Position, Velocity>();
     auto view = registry.view<Position, Velocity>(persistent_t{});
 
-    auto timePoint = TIME_HERE;
     printf("creating a ton of entities...\n");
-    for (int i = 0; i < (1<<14); ++i)
+    auto timePoint = TIME_HERE;
+    for (int i = 0; i < (1<<16); ++i)
     {
         auto entity = registry.create();
         registry.assign<Position>(entity);
@@ -48,8 +48,8 @@ int main()
     //elapsed = ELAPSEDuS(timePoint);
     //printf("elapsed: %d\n", elapsed);
 
-    timePoint = TIME_HERE;
     printf("looping a ton of entities, 2 comp...\n");
+    timePoint = TIME_HERE;
 
     view.each([](auto ent, Position& pos, Velocity& vel)
     {
