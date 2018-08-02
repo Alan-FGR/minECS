@@ -1,0 +1,73 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>BepuUtilities</AssemblyName>
+    <RootNamespace>BepuUtilities</RootNamespace>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>2.0.0-alpha</Version>
+    <Company>Bepu Entertainment LLC</Company>
+    <Authors>Ross Nordby</Authors>
+    <Description>Supporting utilities library for an early version of BEPUphysics v2.</Description>
+    <Copyright>© Bepu Entertainment LLC</Copyright>
+    <PackageProjectUrl>https://github.com/bepu/bepuphysics2</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/bepu/bepuphysics2/blob/master/LICENSE.md</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/bepu/bepuphysics2</RepositoryUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/bepu/bepuphysics1/master/Documentation/images/readme/bepuphysicslogo256.png</PackageIconUrl>
+    <Configurations>Debug;Release;ReleaseStrip</Configurations>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Condition="'$(Configuration)'=='ReleaseStrip'" Command="dotnet &quot;$(ProjectDir)..\Dependencies\ilopt\ilopt.dll&quot; &quot;$(TargetPath)&quot;" />
+  </Target>
+    
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+    
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStrip|AnyCPU'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;RELEASESTRIP;NETSTANDARD2_0</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStrip|x86'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStrip|x64'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <DefineConstants>TRACE;DEBUG;NETSTANDARD2_0;CHECKMATH</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.1" />
+  </ItemGroup>
+
+</Project>

@@ -71,7 +71,7 @@ public class View<T1, T2> : ViewBase
             };
 
             return;
-        }
+        //}
     }
 
     public delegate void Process(int entIdx, ref T1 component1, ref T2 component2);
