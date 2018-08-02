@@ -18,18 +18,14 @@ public interface IMappedBuffer<in TKey> where TKey : struct
 public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where TKey : struct where TData : struct
 {
     private TData[] data_;
-    private TKey[] keys_; //same order as data_
-    public int Count { get; private set; }
+    private TKey[] keys_; //same indices as data_
     private readonly Dictionary<TKey, int> keysToIndices_;
+    public int Count { get; private set; }
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
+    internal event Action<int> OnBufferGrow;
 
 #if VIEWS
-    protected delegate void EntryAdded(TKey key, int index);
-    protected delegate void EntryRemoved(TKey removedKey, int removedIndex, TKey keyMovedThere, int indexOfDataMovedThere); //indexOfDataMovedThere is normally last
-    protected event EntryAdded OnAddEntry;
-    protected event EntryRemoved OnRemoveEntry;
-
     protected class SyncedIndices
     {
         public IMappedBuffer<TKey> buffer;
@@ -67,25 +63,8 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
         for (var i = 0; i < indices.Length; i++)
             indices[i] = -1;
 
-        bufferToSync.OnAddEntry += (key, index) =>
-        {
-            var indexInThisBuffer = TryGetIndexFromKey(key);
-            if (indexInThisBuffer >= 0) //if entity exists in this buffer
-                syncedIndices_.Find(bufferToSync).indicesMap[indexInThisBuffer] = index;
-        };
 
-        bufferToSync.OnRemoveEntry += (removedKey, removedIndex, keyMovedThere, indexMovedThere) =>
-        {
-            var indexInThisBuffer = TryGetIndexFromKey(removedKey);
-            var movedIndexInThisBuffer = TryGetIndexFromKey(keyMovedThere);
-            if (movedIndexInThisBuffer >= 0) //todo review
-            {
-                if (indexInThisBuffer >= 0)
-                    syncedIndices_.Find(bufferToSync).indicesMap[movedIndexInThisBuffer] = indexMovedThere;
-            }
-            else if (indexInThisBuffer >= 0)
-                syncedIndices_.Find(bufferToSync).indicesMap[indexInThisBuffer] = -1; //todo rev
-        };
+        
     }
 
 #endif
@@ -113,7 +92,7 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
         return ref data_[index];
     }
 
-    protected int GetIndexFromKey(TKey key)
+    internal int GetIndexFromKey(TKey key)
     {
         return keysToIndices_[key];
     }
@@ -127,9 +106,9 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
         return -1;
     }
 
-    public TData GetDataFromKey(TKey key)
+    public ref TData GetDataFromKey(TKey key)
     {
-        return data_[keysToIndices_[key]];
+        return ref data_[keysToIndices_[key]];
     }
 
     public void AddEntry(TKey key, in TData data)
@@ -149,6 +128,7 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
             data_ = newData;
             keys_ = newKeys;
 
+            OnBufferGrow?.Invoke(newSize);
 #if VIEWS
             foreach (var synced in syncedIndices_)
             {
@@ -168,37 +148,25 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
 
 #if VIEWS
         OnAddEntry?.Invoke(key, currentIndex); //nullcheck, piping or vtable... todo explore options
-        foreach (var synced in syncedIndices_) //todo avoid ienumerator
-        {
-            int indexInOtherBuffer = synced.buffer.TryGetIndexFromKey(key); //todo mask flags?
-            if (indexInOtherBuffer >= 0) // if index for key exists in other buffer
-                synced.indicesMap[currentIndex] = indexInOtherBuffer;
-        }
+
 #endif
 
         Count++;
     }
 
-    public (int index, TData data) RemoveEntry(TKey key)
+    public (TKey removedKey, TKey lastKey, int lastIndex) RemoveEntry(int index)
     {
-        int entryIndex = keysToIndices_[key];
+        TKey removedKey = keys_[index];
         int lastIndex = Count - 1;
         TKey lastKey = keys_[lastIndex];
-        TData removedData = data_[entryIndex];
 
-        data_[entryIndex] = data_[lastIndex];
-        keys_[entryIndex] = keys_[lastIndex];
-        keysToIndices_[lastKey] = entryIndex; //update index of last key
-        keysToIndices_.Remove(key);
+        data_[index] = data_[lastIndex];
+        keys_[index] = keys_[lastIndex];
+        keysToIndices_[lastKey] = index; //update index of last key
+        keysToIndices_.Remove(removedKey);
         Count--;
 
-#if VIEWS
-        OnRemoveEntry?.Invoke(key, entryIndex, lastKey, lastIndex);
-        foreach (var synced in syncedIndices_)
-            synced.indicesMap[entryIndex] = -1;
-#endif
-
-        return (entryIndex, removedData);
+        return (removedKey, lastKey, lastIndex);
     }
 
     public virtual string GetDebugData(bool detailed)

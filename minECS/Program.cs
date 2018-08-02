@@ -71,7 +71,7 @@ class Program
         //create and register some component buffers
         Print("Creating Component Buffers");
 
-        var posBuffer = registry_.CreateComponentBuffer<Position>(1<<preallocShift);
+        var posBuffer = registry_.RegisterComponent<Position>(1<<preallocShift);
         var velBuffer = registry_.CreateComponentBuffer<Velocity>(1<<preallocShift);
         
         velBuffer.SubscribeSyncBuffer(posBuffer);
