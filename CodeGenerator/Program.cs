@@ -39,10 +39,23 @@ namespace CodeGenerator
         }
 
 
+        static List<List<T>> GetPermutations<T>(List<T> list, int length)
+        {
+            if (length == 1) return list.Select(t => new List<T> { t }).ToList();
+            return GetPermutations(list, length - 1)
+                .SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new List<T> { t2 }).ToList()).ToList();
+        }
+
+        static List<List<int>> GetAllPermutationsForRange(int range)
+        {
+            List<int> ints = Enumerable.Range(0, range).ToList();
+            return GetPermutations(ints, range);
+        }
 
         static void Main(string[] args)
         {
-            int depth = 2;
+            int depth = 3;
 
             var dels = new List<string>();
             var defs = new List<string>();
@@ -93,19 +106,29 @@ namespace CodeGenerator
 
 
 
+                string ifelse = "";
                 for (int j = 0; j < i; j++)
                 {
                     int dense = j;
                     int sparse = (i-1)-dense;
 
-                    sb.AppendLine($"  if (denseCount == {dense} && sparseCount == {sparse}){{");
-                    sb.AppendLine($"    if (sortMapDense.SequenceEqual(new[] {{ 0, 1 }}))");
-                    sb.AppendLine($"      Loop01Dense{dense}Sparse{sparse}(loopAction,");
+                    sb.AppendLine($"  {ifelse}if (denseCount == {dense} && sparseCount == {sparse}){{");
+                    ifelse = "else ";
 
-                    for (int k = 1; k < i; k++)
+                    var permutations = GetAllPermutationsForRange(i-1);
+                    string ifelse2 = "";
+                    foreach (List<int> permutation in permutations)
                     {
-                        sb.AppendLine($"        (ComponentBufferDense<T{k}>)denseBuffersSorted[{k-1}]"+
-                                      ((k != i - 1) ? "," : ");"));
+                        sb.AppendLine($"    {ifelse2}if (sortMapDense.SequenceEqual(new[] {{ {string.Join(',',permutation)} }}))");
+                        sb.AppendLine($"      Loop{string.Join("", permutation)}Dense{dense}Sparse{sparse}(loopAction,");
+                        ifelse2 = "else ";
+
+                        for (int k = 1; k < i; k++)
+                        {
+                            string type = k > dense ? "Sparse" : "Dense";
+                            sb.AppendLine($"        (ComponentBuffer{type}<T{permutation[k-1]+1}>)denseBuffersSorted[{k-1}]"+
+                                          ((k != i - 1) ? "," : ");"));
+                        }
                     }
 
                     sb.AppendLine($"  }}");
