@@ -371,7 +371,7 @@ class Program
     static void Tests2()
     {
         foreach (var warmup in new[] { true, false })
-            for (int li = 0; li < 40; li++)
+            for (int li = 0; li < 140; li++)
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();

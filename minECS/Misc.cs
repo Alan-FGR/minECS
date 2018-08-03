@@ -1,10 +1,22 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
 
 static class StopWatchExtensions
 {
     public static float ElapsedMicroseconds(this Stopwatch sw)
     {
         return sw.ElapsedTicks / (Stopwatch.Frequency / 1000000f);
+    }
+}
+
+static class MiscUtils
+{
+    public static int[] GetSortMap<T>(IList<T> original, IList<T> sorted)
+    {
+        var deltas = new int[original.Count];
+        for (var i = 0; i < original.Count; i++)
+            deltas[i] = sorted.IndexOf(original[i]);
+        return deltas;
     }
 }
 

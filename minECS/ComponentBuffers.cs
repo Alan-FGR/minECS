@@ -47,34 +47,29 @@ public class ComponentMatcher
 ////    }
 //}
 
-enum BufferType
-{
-    /// <summary> Fast to loop, but uses more memory (32KiB per 1024 entities). Use for common components (e.g. position). </summary>
-    Sparse,
-    /// <summary> Slow to loop, but uses less memory. Best suited for uncommon components (added to less than 1/20 of entities). </summary>
-    Dense,
-}
-
 abstract class ComponentBufferBase : IDebugData
 {
     public ComponentMatcher Matcher { get; protected set; }
     public bool Sparse { get; protected set; }
+    public abstract int ComponentCount { get; }
 
-    public abstract void RemoveComponent(EntIdx entIdx);
+    public abstract void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags);
 
     public abstract string GetDebugData(bool detailed);
 }
 
 abstract class TypedComponentBufferBase<T> : ComponentBufferBase
 {
-    public abstract void AddComponent(EntIdx entIdx, in T component);
+    public abstract void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags);
 }
 
 class ComponentBufferDense<T> : TypedComponentBufferBase<T>
     where T : struct
 {
     private MappedBufferDense<EntIdx, T> buffer_;
-    
+
+    public override int ComponentCount => buffer_.Count;
+
     public ComponentBufferDense(int bufferIndex, int initialSize = 1 << 10)
     {
         buffer_ = new MappedBufferDense<EntIdx, T>(initialSize);
@@ -82,19 +77,21 @@ class ComponentBufferDense<T> : TypedComponentBufferBase<T>
         Matcher = new ComponentMatcher(flag);
     }
 
-    public (Dictionary<int, int> k2i, int[] i2k, T[] data) __GetBuffers()
+    public (Dictionary<EntIdx, int> entIdx2i, int[] i2EntIdx, T[] data) __GetBuffers()
     {
         return buffer_.__GetBuffers();
     }
 
-    public override void AddComponent(EntIdx entIdx, in T component)
+    public override void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags)
     {
         buffer_.AddKey(entIdx, component);
+        dataToSetFlags.FlagsDense |= Matcher.Flag;
     }
 
-    public override void RemoveComponent(EntIdx entIdx)
+    public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
         buffer_.RemoveByKey(entIdx);
+        dataToSetFlags.FlagsDense ^= Matcher.Flag;
     }
 
     public override string GetDebugData(bool detailed)

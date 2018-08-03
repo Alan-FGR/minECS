@@ -71,18 +71,16 @@ class Program
         //create and register some component buffers
         Print("Creating Component Buffers");
 
-        var posBuffer = registry_.RegisterComponent<Position>(1<<preallocShift);
-        var velBuffer = registry_.CreateComponentBuffer<Velocity>(1<<preallocShift);
+        registry_.RegisterComponent<Position>(BufferType.Dense, 1<<preallocShift);
+        registry_.RegisterComponent<Velocity>(BufferType.Dense, 1<<preallocShift);
         
-        velBuffer.SubscribeSyncBuffer(posBuffer);
-
         PrintRegistryDebug();
         PrintCompBufsDebug();
 
 
 
 
-
+        
         var e = registry_.CreateEntity();
         registry_.AddComponent(e, new Position());
         registry_.AddComponent(e, new Velocity { x = 0, y = 3 });
@@ -106,7 +104,7 @@ class Program
 
 
         Console.ReadKey();
-        return;
+        /*
 
 
 
@@ -250,6 +248,8 @@ class Program
 
 
         Console.ReadKey();
+
+        */
     }
 }
 

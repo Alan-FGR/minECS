@@ -103,7 +103,6 @@ internal class ViewsManager
 }
 */
 
-
 partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
@@ -121,62 +120,61 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         return newUID;
     }
 
-    public void DeleteEntity(EntUID entUID)
-    {
-        EntIdx entIdx = GetIndexFromKey(entUID);
-        ref EntityData entData = ref GetDataFromIndex(entIdx);
-        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
-        RemoveByIndex(entIdx);
+//    public void DeleteEntity(EntUID entUID)
+//    {
+//        EntIdx entIdx = GetIndexFromKey(entUID);
+//        ref EntityData entData = ref GetDataFromIndex(entIdx);
+//        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
+//        RemoveByIndex(entIdx);
+//
+////        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
+////        foreach (var synced in syncedIndices_)
+////            synced.indicesMap[index] = -1;
+//    }
 
-//        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
-//        foreach (var synced in syncedIndices_)
-//            synced.indicesMap[index] = -1;
-    }
-
-    public void RegisterComponent<T>(int initialSize = 1 << 10) where T : struct
+    public void RegisterComponent<T>(BufferType bufferType, int initialSize = 1 << 10) where T : struct
     {
-        componentsManager_.CreateComponentBuffer<T>(initialSize);
+        componentsManager_.CreateComponentBuffer<T>(initialSize, bufferType);
     }
 
     public void AddComponent<T>(EntUID entUID, T component = default) where T : struct
     {
         EntIdx entIdx = GetIndexFromKey(entUID);
         ref EntityData entData = ref GetDataFromIndex(entIdx);
-        EntFlags flag = componentsManager_.AddComponent(entIdx, component);
-        entData.Flags |= flag;
+        componentsManager_.AddComponent(entIdx, component, ref entData);
     }
 
     public void RemoveComponent<T>(EntUID entUID) where T : struct
     {
         EntIdx entIdx = GetIndexFromKey(entUID);
         ref EntityData entData = ref GetDataFromIndex(entIdx);
-        EntFlags flag = componentsManager_.RemoveComponent<T>(entIdx);
-        entData.Flags ^= flag;
+        componentsManager_.RemoveComponent<T>(entIdx, ref entData);
     }
 
-    public void RemoveAllComponents(EntUID entUID)
-    {
-        EntIdx entIdx = GetIndexFromKey(entUID);
-        ref EntityData entData = ref GetDataFromIndex(entIdx);
-        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
-        entData.Flags = 0;
-    }
+//    public void RemoveAllComponents(EntUID entUID)
+//    {
+//        EntIdx entIdx = GetIndexFromKey(entUID);
+//        ref EntityData entData = ref GetDataFromIndex(entIdx);
+//        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
+//        entData.Flags = 0;
+//    }
 
     #region Debug
 
     public string GetEntityDebugData(EntUID entUID)
     {
         return $"Entity Debug Data: UID: {entUID}, Idx: {GetIndexFromKey(entUID)}\n" +
-               $" Flags: {Convert.ToString((long)GetDataFromKey(entUID).Flags, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
+               $" FlagsD:{Convert.ToString((long)GetDataFromKey(entUID).FlagsDense, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
+               $" FlagsS:{Convert.ToString((long)GetDataFromKey(entUID).FlagsSparse, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $" Tags:  {Convert.ToString((long)GetDataFromKey(entUID).Tags, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlagsSlow(GetDataFromKey(entUID).Flags).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlagsSlow(GetDataFromKey(entUID).FlagsDense).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
             ;
     }
 
     public override string GetDebugData(bool detailed = false)
     {
         string s =
-            $"Entity count: {Count}, UID Dict Entries: {KeysToIndicesDebug.Count}, Component Buffers: {componentsManager_.Count}";
+            $"Entity count: {Count}, UID Dict Entries: {KeysToIndicesDebug.Count}, Component Buffers: {componentsManager_.DenseCount}";
         if (detailed)
         {
             s += "\n";
@@ -192,6 +190,103 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
     //TODO filter loops by tag too
     //TODO in loop, sort buffers by entries count
 
-    
+
+    enum MatchingOrder
+    {
+        TagsThenComponents,
+        ComponentsThenTags,
+    }
+
+    public delegate void ProcessComponent<T1, T2>(int entIdx, ref T1 component1, ref T2 component2);
+
+    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
+        where T1 : struct where T2 : struct
+    {
+        List<ComponentBufferBase> denseBuffers = new List<ComponentBufferBase>();
+        List<ComponentBufferBase> sparseBuffers = new List<ComponentBufferBase>();
+
+        var t1Base = componentsManager_.GetBufferSlow<T1>();
+        if (t1Base.Sparse) sparseBuffers.Add(t1Base);
+        else denseBuffers.Add(t1Base);
+
+        var t2Base = componentsManager_.GetBufferSlow<T2>();
+        if (t2Base.Sparse) sparseBuffers.Add(t2Base);
+        else denseBuffers.Add(t2Base);
+
+        // sort buffers by component count
+        var denseBuffersSorted = denseBuffers.OrderBy(x => x.ComponentCount).ToArray();
+        var sparseBuffersSorted = sparseBuffers.OrderBy(x => x.ComponentCount).ToArray();
+
+        int[] sortMapDense = MiscUtils.GetSortMap(denseBuffers, denseBuffersSorted);
+        int[] sortMapSparse = MiscUtils.GetSortMap(sparseBuffers, sparseBuffersSorted);
+
+        int denseCount = sortMapDense.Length;
+        int sparseCount = sortMapSparse.Length;
+
+        if (denseCount == 2 && sparseCount == 0)
+        {
+            if (sortMapDense == new[] { 0, 1 })
+                Loop01Dense2Sparse0(loopAction,
+                    (ComponentBufferDense<T1>)denseBuffersSorted[0],
+                    (ComponentBufferDense<T2>)denseBuffersSorted[1]);
+            else if (sortMapDense == new[] { 1, 0 })
+                Loop10Dense2Sparse0(loopAction,
+                    (ComponentBufferDense<T2>)denseBuffersSorted[1],
+                    (ComponentBufferDense<T1>)denseBuffersSorted[0]);
+        }
+
+    }
+
+    public void Loop01Dense2Sparse0<T1, T2>(
+        ProcessComponent<T1, T2> loopAction,
+        ComponentBufferDense<T1> t1B, ComponentBufferDense<T2> t2B
+        )
+        where T1 : struct where T2 : struct
+    {
+        var compBuffers = t1B.__GetBuffers();
+        var compIdx2EntIdx = compBuffers.i2EntIdx;
+        var components = compBuffers.data;
+
+        var matcher2Flag = t2B.Matcher.Flag;
+        var matcher2Buffers = t2B.__GetBuffers();
+        for (var i = components.Length - 1; i >= 0; i--)
+        {
+            ref T1 component = ref components[i];
+            EntIdx entIdx = compIdx2EntIdx[i];
+            ref EntityData entityData = ref data_[entIdx];
+            if ((entityData.FlagsDense & matcher2Flag) != 0)
+            {
+                int indexInMatcher2 = matcher2Buffers.entIdx2i[entIdx];
+                ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
+                loopAction(entIdx, ref component, ref component2);
+            }
+        }
+    }
+
+    public void Loop10Dense2Sparse0<T1, T2>(
+        ProcessComponent<T1, T2> loopAction,
+        ComponentBufferDense<T2> t1B, ComponentBufferDense<T1> t2B
+    )
+        where T1 : struct where T2 : struct
+    {
+        var compBuffers = t1B.__GetBuffers();
+        var compIdx2EntIdx = compBuffers.i2EntIdx;
+        var components = compBuffers.data;
+
+        var matcher2Flag = t2B.Matcher.Flag;
+        var matcher2Buffers = t2B.__GetBuffers();
+        for (var i = components.Length - 1; i >= 0; i--)
+        {
+            ref T2 component = ref components[i];
+            EntIdx entIdx = compIdx2EntIdx[i];
+            ref EntityData entityData = ref data_[entIdx];
+            if ((entityData.FlagsDense & matcher2Flag) != 0)
+            {
+                int indexInMatcher2 = matcher2Buffers.entIdx2i[entIdx];
+                ref T1 component2 = ref matcher2Buffers.data[indexInMatcher2];
+                loopAction(entIdx, ref component2, ref component);
+            }
+        }
+    }
 
 }
