@@ -19,6 +19,7 @@ public struct EntityData
     }
 }
 
+/*
 public abstract class ViewBase
 {
     public EntFlags syncedBuffersFlags { get; private set; }
@@ -121,13 +122,12 @@ internal class ViewsManager
         //todo when sorting components, if buffer is synced by any view, create a list of swappedpairs and get here
     }
 }
-
+*/
 internal partial class ComponentBuffersManager : IDebugData
 {
     public int Count { get; private set; } = 0;
     private readonly IComponentMatcher[] buffers_ = new IComponentMatcher[sizeof(EntFlags) * 8];
-    
-    private ViewsManager viewsManager_ = new ViewsManager();
+    //private readonly int[][] 
 
     private ComponentBuffer<T> GetBuffer<T>() where T : struct //TODO use a dict of comp types?
     {
