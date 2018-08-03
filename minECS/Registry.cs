@@ -20,14 +20,6 @@ public struct EntityData
 }
 
 /*
-public abstract class ViewBase
-{
-    public EntFlags syncedBuffersFlags { get; private set; }
-
-    internal abstract void SyncBuffersAdded(IComponentMatcher buffer, EntIdx entIdx);
-    internal abstract void SyncBuffersRemoved(IComponentMatcher buffer, (EntIdx removedKey, EntIdx lastKey, int lastIndex) remData);
-}
-
 public class View<T1, T2> : ViewBase
     where T1 : struct where T2 : struct
 {
@@ -105,48 +97,33 @@ internal class ViewsManager
 {
     private List<ViewBase> views_ = new List<ViewBase>();
 
-    internal void ComponentAdded(IComponentMatcher matcher, EntIdx entIdx)
-    {
-        foreach (ViewBase view in views_)
-            view.SyncBuffersAdded(matcher, entIdx);
-    }
 
-    internal void ComponentRemoved(IComponentMatcher matcher, (EntIdx removedKey, EntIdx lastKey, int lastIndex) remData)
-    {
-        foreach (ViewBase view in views_)
-            view.SyncBuffersRemoved(matcher, remData);
-    }
-
-    internal void BufferSorted(IComponentMatcher matcher)
-    {
-        //todo when sorting components, if buffer is synced by any view, create a list of swappedpairs and get here
-    }
 }
 */
+
 internal partial class ComponentBuffersManager : IDebugData
 {
     public int Count { get; private set; } = 0;
-    private readonly IComponentMatcher[] buffers_ = new IComponentMatcher[sizeof(EntFlags) * 8];
-    //private readonly int[][] 
+    private readonly IComponentBuffer[] buffers_ = new IComponentBuffer[sizeof(EntFlags) * 8];
 
-    private ComponentBuffer<T> GetBuffer<T>() where T : struct //TODO use a dict of comp types?
+    private ComponentBuffer<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
     {
         for (var i = 0; i < Count; i++)
         {
-            IComponentMatcher matcher = buffers_[i];
-            if (matcher is ComponentBuffer<T> castBuffer)
+            IComponentBuffer buffer = buffers_[i];
+            if (buffer is ComponentBuffer<T> castBuffer)
                 return castBuffer;
         }
         return null; //todo error if buffer is not registered
     }
 
-    internal IEnumerable<IComponentMatcher> MatchersFromFlags(EntFlags flags) //todo rem ienumerable
+    internal IEnumerable<IComponentBuffer> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
     {
         for (var i = 0; i < Count; i++)
         {
-            IComponentMatcher matcher = buffers_[i];
-            if (matcher.Matches(flags))
-                yield return matcher;
+            IComponentBuffer buffer = buffers_[i];
+            if (buffer.Matcher.Matches(flags))
+                yield return buffer;
         }
     }
 
@@ -158,18 +135,17 @@ internal partial class ComponentBuffersManager : IDebugData
     }
 
     /// <summary> Returns the flag of the component added to the entity </summary>
-    public EntFlags AddComponent<T>(EntIdx entIdx, T component) where T : struct
+    public EntFlags AddComponent<T>(EntIdx entIdx, in T component) where T : struct
     {
-        var buffer = GetBuffer<T>();
-        buffer.AddEntry(entIdx, component);
-        viewsManager_.ComponentAdded(buffer, entIdx);
+        var buffer = GetBufferSlow<T>();
+        buffer.AddComponent(entIdx, component);
         return buffer.Flag;
     }
 
     /// <summary> Returns the flag of the component buffer </summary>
     public EntFlags RemoveComponent<T>(EntIdx entIdx) where T : struct
     {
-        var buffer = GetBuffer<T>();
+        var buffer = GetBufferSlow<T>();
         var remData = buffer.RemoveEntry(entIdx);
         viewsManager_.ComponentRemoved(buffer, remData);
         return buffer.Flag;
@@ -177,7 +153,7 @@ internal partial class ComponentBuffersManager : IDebugData
 
     public void RemoveAllComponents(EntIdx entIdx, EntFlags flags)
     {
-        foreach (var matcher in MatchersFromFlags(flags))
+        foreach (var matcher in MatchersFromFlagsSlow(flags))
         {
             matcher.RemoveEntIdx(entIdx);
             viewsManager_.ComponentRemoved(matcher, entIdx);
@@ -196,6 +172,34 @@ internal partial class ComponentBuffersManager : IDebugData
         }
         return s;
     }
+
+    public delegate void ProcessComponent<T1, T2>(int entIdx, ref T1 component1, ref T2 component2);
+    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
+        where T1 : struct where T2 : struct
+    {
+        var componentBuffer = GetBufferSlow<T1>();
+        var buffers = componentBuffer.__GetBuffers();
+        var entIdxs = buffers.keys;
+        var components = buffers.data;
+
+        var matcher2 = GetBufferSlow<T2>();
+        var matcher2Buffers = matcher2.__GetBuffers();
+        for (var i = components.Length - 1; i >= 0; i--)
+        {
+            ref T1 component = ref components[i];
+            int entIdx = entIdxs[i];
+            ref EntityData entityData = ref GetDataFromIndex(entIdx);
+            if (matcher2.Matches(entityData.Flags))
+            {
+                int indexInMatcher2 = matcher2.TryGetIndexFromKey(entIdx);
+                if (indexInMatcher2 >= 0)
+                {
+                    ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
+                    loopAction(entIdx, ref component, ref component2);
+                }//end if indexInMatcher2
+            }//end if matcher2.Matches
+        }//end for components
+    }//end function
 }
 
 partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
@@ -263,7 +267,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
         return $"Entity Debug Data: UID: {entUID}, Idx: {GetIndexFromKey(entUID)}\n" +
                $" Flags: {Convert.ToString((long)GetDataFromKey(entUID).Flags, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $" Tags:  {Convert.ToString((long)GetDataFromKey(entUID).Tags, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlags(GetDataFromKey(entUID).Flags).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlagsSlow(GetDataFromKey(entUID).Flags).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
             ;
     }
 
@@ -282,37 +286,10 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
     }
 
     #endregion
-    
+
     //TODO filter loops by tag too
     //TODO in loop, sort buffers by entries count
 
-    //end function
-
-    //public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
-    //    where T1 : struct where T2 : struct
-    //{
-    //    var componentBuffer = GetComponentBuffer<T1>();
-    //    var buffers = componentBuffer.__GetBuffers();
-    //    var entIdxs = buffers.keys;
-    //    var components = buffers.data;
-
-    //    var matcher2 = GetComponentBuffer<T2>();
-    //    var matcher2Buffers = matcher2.__GetBuffers();
-    //    for (var i = components.Length - 1; i >= 0; i--)
-    //    {
-    //        ref T1 component = ref components[i];
-    //        int entIdx = entIdxs[i];
-    //        ref EntityData entityData = ref GetDataFromIndex(entIdx);
-    //        if (matcher2.Matches(entityData.Flags))
-    //        {
-    //            int indexInMatcher2 = matcher2.TryGetIndexFromKey(entIdx);
-    //            if (indexInMatcher2 >= 0)
-    //            {
-    //                ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
-    //                loopAction(entIdx, ref component, ref component2);
-    //            }//end if indexInMatcher2
-    //        }//end if matcher2.Matches
-    //    }//end for components
-    //}//end function
+    
 
 }

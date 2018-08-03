@@ -1,5 +1,4 @@
-﻿#define VIEWS
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -12,10 +11,11 @@ using EntTags = System.UInt64;
 
 public interface IMappedBuffer<in TKey> where TKey : struct
 {
-    int TryGetIndexFromKey(TKey key);
+    int TryGetIndexFromKey(TKey key);//todo devirt
 }
 
-public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where TKey : struct where TData : struct
+public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey>
+    where TKey : struct where TData : struct
 {
     private TData[] data_;
     private TKey[] keys_; //same indices as data_
@@ -25,49 +25,44 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey> where T
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
     internal event Action<int> OnBufferGrow;
 
-#if VIEWS
-    protected class SyncedIndices
-    {
-        public IMappedBuffer<TKey> buffer;
-        public int[] indicesMap; // indices aligned to this buffer containing indices to components on another buffer
-        public SyncedIndices(IMappedBuffer<TKey> buffer, int[] indicesMap)
-        {
-            this.buffer = buffer;
-            this.indicesMap = indicesMap;
-        }
-    }
-    protected class AllSyncedIndices : List<SyncedIndices>
-    {
-        public SyncedIndices Find(IMappedBuffer<TKey> buffer)
-        {
-            for (var i = 0; i < this.Count; i++)
-            {
-                if (this[i].buffer == buffer)
-                    return this[i];
-            }
-            return null;
-        }
-    }
-    protected AllSyncedIndices syncedIndices_ = new AllSyncedIndices();
+//    public class SyncedIndices
+//    {
+//        public IMappedBuffer<TKey> buffer;
+//        public int[] indicesMap; // indices aligned to this buffer containing indices to components on another buffer
+//        public SyncedIndices(IMappedBuffer<TKey> buffer, int[] indicesMap)
+//        {
+//            this.buffer = buffer;
+//            this.indicesMap = indicesMap;
+//        }
+//    }
+//    protected class AllSyncedIndices : List<SyncedIndices>
+//    {
+//        public SyncedIndices Find(IMappedBuffer<TKey> buffer)
+//        {
+//            for (var i = 0; i < this.Count; i++)
+//            {
+//                if (this[i].buffer == buffer)
+//                    return this[i];
+//            }
+//            return null;
+//        }
+//    }
+//    protected AllSyncedIndices syncedIndices_ = new AllSyncedIndices();
+//
+//    public int[] GetSyncedIndicesForBuffer(IMappedBuffer<TKey> buffer)
+//    {
+//        return syncedIndices_.Find(buffer).indicesMap;
+//    }
+//
+//    public virtual void SubscribeSyncBuffer<TSData>(MappedBuffer<TKey, TSData> bufferToSync)
+//        where TSData : struct
+//    {
+//        int[] indices = new int[data_.Length];
+//        syncedIndices_.Add(new SyncedIndices(bufferToSync, indices)); //todo check if exists? add will fail if exists
+//        for (var i = 0; i < indices.Length; i++)
+//            indices[i] = -1;
+//    }
 
-    public int[] GetSyncedIndicesForBuffer(IMappedBuffer<TKey> buffer)
-    {
-        return syncedIndices_.Find(buffer).indicesMap;
-    }
-
-    public virtual void SubscribeSyncBuffer<TSData>(MappedBuffer<TKey, TSData> bufferToSync)
-        where TSData : struct
-    {
-        int[] indices = new int[data_.Length];
-        syncedIndices_.Add(new SyncedIndices(bufferToSync, indices)); //todo check if exists? add will fail if exists
-        for (var i = 0; i < indices.Length; i++)
-            indices[i] = -1;
-
-
-        
-    }
-
-#endif
 
     public MappedBuffer(int initialSize = 1 << 10)
     {
