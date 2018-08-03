@@ -5,9 +5,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using EntIdx = System.Int32; // this the indexing type
-using EntUID = System.UInt64; // ain't no C++ :(
-using EntFlags = System.UInt64; // component flags
+using EntIdx = System.Int32;
+using EntUID = System.UInt64;
+using EntFlags = System.UInt64;
 using EntTags = System.UInt64;
 
 public class ComponentMatcher
@@ -47,51 +47,60 @@ public class ComponentMatcher
 ////    }
 //}
 
-abstract class ComponentBufferBase
+enum BufferType
 {
-    public ComponentMatcher Matcher { get; protected set; }
-    protected int[] SyncedIndices { get; set; } = null;
+    /// <summary> Fast to loop, but uses more memory (32KiB per 1024 entities). Use for common components (e.g. position). </summary>
+    Sparse,
+    /// <summary> Slow to loop, but uses less memory. Best suited for uncommon components (added to less than 1/20 of entities). </summary>
+    Dense,
 }
 
-class ComponentBuffer<T> : ComponentBufferBase, IDebugData
+abstract class ComponentBufferBase : IDebugData
+{
+    public ComponentMatcher Matcher { get; protected set; }
+    public bool Sparse { get; protected set; }
+
+    public abstract void RemoveComponent(EntIdx entIdx);
+
+    public abstract string GetDebugData(bool detailed);
+}
+
+abstract class TypedComponentBufferBase<T> : ComponentBufferBase
+{
+    public abstract void AddComponent(EntIdx entIdx, in T component);
+}
+
+class ComponentBufferDense<T> : TypedComponentBufferBase<T>
     where T : struct
 {
-    private MappedBuffer<EntIdx, T> buffer_;
+    private MappedBufferDense<EntIdx, T> buffer_;
     
-    public ComponentBuffer(int bufferIndex, int initialSize = 1 << 10)
+    public ComponentBufferDense(int bufferIndex, int initialSize = 1 << 10)
     {
-        buffer_ = new MappedBuffer<EntIdx, T>(initialSize);
+        buffer_ = new MappedBufferDense<EntIdx, T>(initialSize);
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
     }
 
-    public void AddComponent(EntIdx entIdx, in T component)
+    public (Dictionary<int, int> k2i, int[] i2k, T[] data) __GetBuffers()
     {
-        if (SyncedIndices != null)
-            SyncedIndices[entIdx] = buffer_.Count;
-        buffer_.AddEntry(entIdx, component);
+        return buffer_.__GetBuffers();
     }
 
-    public void RemoveComponent(EntIdx entIdx)
+    public override void AddComponent(EntIdx entIdx, in T component)
     {
-        if (SyncedIndices != null)
-        {
-            var indexToRemove = buffer_.GetIndexFromKey(entIdx);
-            var remData = buffer_.RemoveByIndex(indexToRemove);
-            SyncedIndices[entIdx] = -1;
-            SyncedIndices[remData.lastKey] = remData.lastIndex;
-        }
-        else
-        {
-            buffer_.RemoveByKey(entIdx);
-        }
+        buffer_.AddKey(entIdx, component);
     }
 
-    public string GetDebugData(bool detailed)
+    public override void RemoveComponent(EntIdx entIdx)
+    {
+        buffer_.RemoveByKey(entIdx);
+    }
+
+    public override string GetDebugData(bool detailed)
     {
         return
             $"  Flag: {Convert.ToString((long)Matcher.Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
             buffer_.GetDebugData(detailed);
     }
-
 }

@@ -47,7 +47,7 @@ class Program
 
     static void PrintCompBufsDebug(bool detailed = false)
     {
-        Console.WriteLine(registry_.GetComponentBuffersDebugData(detailed) + "\n");
+        //Console.WriteLine(registry_.GetComponentBuffersDebugData(detailed) + "\n");
     }
 
     static void Print(string s)

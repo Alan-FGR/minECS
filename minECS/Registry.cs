@@ -4,15 +4,17 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using EntIdx = System.Int32; // this the indexing type
-using EntUID = System.UInt64; // ain't no C++ :(
-using EntFlags = System.UInt64; // component flags
+using EntIdx = System.Int32; 
+using EntUID = System.UInt64;
+using EntFlags = System.UInt64;
 using EntTags = System.UInt64;
 
 public struct EntityData
 {
-    public EntFlags Flags;
+    public EntFlags FlagsDense;
+    public EntFlags FlagsSparse;
     public EntTags Tags;
+    
     public EntityData(EntTags tags) : this()
     {
         Tags = tags;
@@ -101,108 +103,8 @@ internal class ViewsManager
 }
 */
 
-internal partial class ComponentBuffersManager : IDebugData
-{
-    public int Count { get; private set; } = 0;
-    private readonly ComponentBufferBase[] buffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
 
-    private ComponentBuffer<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
-    {
-        for (var i = 0; i < Count; i++)
-        {
-            ComponentBufferBase buffer = buffers_[i];
-            if (buffer is ComponentBuffer<T> castBuffer)
-                return castBuffer;
-        }
-        return null; //todo error if buffer is not registered
-    }
-
-    internal IEnumerable<ComponentBufferBase> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
-    {
-        for (var i = 0; i < Count; i++)
-        {
-            ComponentBufferBase buffer = buffers_[i];
-            if (buffer.Matcher.Matches(flags))
-                yield return buffer;
-        }
-    }
-
-    public void CreateComponentBuffer<T>(int initialSize) where T : struct
-    {
-        var buffer = new ComponentBuffer<T>(Count, initialSize);
-        buffers_[Count] = buffer;
-        Count++;
-    }
-
-    /// <summary> Returns the flag of the component added to the entity </summary>
-    public EntFlags AddComponent<T>(EntIdx entIdx, in T component) where T : struct
-    {
-        var buffer = GetBufferSlow<T>();
-        buffer.AddComponent(entIdx, component);
-        return buffer.Flag;
-    }
-
-    /// <summary> Returns the flag of the component buffer </summary>
-    public EntFlags RemoveComponent<T>(EntIdx entIdx) where T : struct
-    {
-        var buffer = GetBufferSlow<T>();
-        var remData = buffer.RemoveEntry(entIdx);
-        viewsManager_.ComponentRemoved(buffer, remData);
-        return buffer.Flag;
-    }
-
-    public void RemoveAllComponents(EntIdx entIdx, EntFlags flags)
-    {
-        foreach (var matcher in MatchersFromFlagsSlow(flags))
-        {
-            matcher.RemoveEntIdx(entIdx);
-            viewsManager_.ComponentRemoved(matcher, entIdx);
-        }
-    }
-    
-    public string GetDebugData(bool detailed = false)
-    {
-        string s = "Registered Component Buffers:\n";
-        for (var i = 0; i < Count; i++)
-        {
-            IComponentMatcher matcher = buffers_[i];
-            s += $" {matcher.GetType().GenericTypeArguments[0].Name}";
-            if (detailed)
-                s += $"\n {matcher.GetDebugData(false)}\n";
-        }
-        return s;
-    }
-
-    public delegate void ProcessComponent<T1, T2>(int entIdx, ref T1 component1, ref T2 component2);
-    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
-        where T1 : struct where T2 : struct
-    {
-        var componentBuffer = GetBufferSlow<T1>();
-        var buffers = componentBuffer.__GetBuffers();
-        var entIdxs = buffers.keys;
-        var components = buffers.data;
-
-        var matcher2 = GetBufferSlow<T2>();
-        var matcher2Buffers = matcher2.__GetBuffers();
-        for (var i = components.Length - 1; i >= 0; i--)
-        {
-            ref T1 component = ref components[i];
-            int entIdx = entIdxs[i];
-            ref EntityData entityData = ref GetDataFromIndex(entIdx);
-            if (matcher2.Matches(entityData.Flags))
-            {
-                int indexInMatcher2 = matcher2.TryGetIndexFromKey(entIdx);
-                if (indexInMatcher2 >= 0)
-                {
-                    ref T2 component2 = ref matcher2Buffers.data[indexInMatcher2];
-                    loopAction(entIdx, ref component, ref component2);
-                }//end if indexInMatcher2
-            }//end if matcher2.Matches
-        }//end for components
-    }//end function
-}
-
-partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
+partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
 
@@ -214,7 +116,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
     public EntUID CreateEntity(EntTags tags = 0)
     {
         EntUID newUID = currentUID_;
-        AddEntry(newUID, new EntityData(tags));
+        AddKey(newUID, new EntityData(tags));
         currentUID_++;
         return newUID;
     }

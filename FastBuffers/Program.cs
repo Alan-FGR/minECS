@@ -75,16 +75,6 @@ class SparseArray
 
 }
 
-
-
-
-
-
-
-
-
-
-
 sealed class UInt32UInt32Map
 {
     private uint[] buckets;
@@ -183,12 +173,6 @@ sealed class UInt32UInt32Map
         }
     }
 }
-
-
-
-
-
-
 
 sealed class Int32Int32Map
 {
@@ -290,12 +274,71 @@ sealed class Int32Int32Map
 }
 
 
+abstract class UntypedBase : ISum
+{
+    protected bool isType2 = false;
+    protected int c = 0;
 
+    public int CastSum()
+    {
+        if (isType2)
+            return ((Typed2) this).SumC();
+        return ((Typed1) this).SumC();
+    }
 
+    public abstract int Sum();
+}
 
+class NoVirt
+{
+    protected int c = 0;
 
+    public int Sum()
+    {
+        c += 1;
+        return c;
+    }
+}
 
+interface ISum
+{
+    int Sum();
+}
 
+class Typed1 : UntypedBase
+{
+    public override int Sum()
+    {
+        c += 1;
+        return c;
+    }
+
+    public int SumC()
+    {
+        c += 1;
+        return c;
+    }
+}
+
+class Typed2 : UntypedBase
+{
+    public Typed2()
+    {
+        isType2 = true;
+    }
+
+    public override int Sum()
+    {
+        c += 1;
+        return c;
+    }
+
+    public int SumC()
+    {
+        c += 1;
+        return c;
+    }
+}
 
 
 class Program
@@ -324,7 +367,104 @@ class Program
         Console.WriteLine($"it took {elapsedMicroseconds.ToString("f0").PadLeft(5)} µs to {text}. Result: {r}");
     }
 
+
+    static void Tests2()
+    {
+        foreach (var warmup in new[] { true, false })
+            for (int li = 0; li < 40; li++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+
+                var uts = new UntypedBase[16];
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if(i % 2 == 0)
+                        uts[i] = new Typed1();
+                    else
+                        uts[i] = new Typed2();
+                }
+
+                var its = new ISum[16];
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if (i % 2 == 0)
+                        its[i] = new Typed1();
+                    else
+                        its[i] = new Typed2();
+                }
+
+                var dts = new NoVirt[16];
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if (i % 2 == 0)
+                        dts[i] = new NoVirt();
+                    else
+                        dts[i] = new NoVirt();
+                }
+
+                Measure($"Interface", warmup, () =>
+                {
+                    int check = 0;
+                    for (int i = 0; i < 1 << 20; i++)
+                        check += its[i % 16].Sum();
+                    return check;
+                });
+
+                Measure($"Cast", warmup, () =>
+                {
+                    int check = 0;
+                    for (int i = 0; i < 1 << 20; i++)
+                        check += uts[i % 16].CastSum();
+                    return check;
+                });
+
+                Measure($"Uncast", warmup, () =>
+                {
+                    int check = 0;
+                    for (int i = 0; i < 1 << 20; i++)
+                        check += uts[i % 16].Sum();
+                    return check;
+                });
+
+                Measure($"Decast", warmup, () =>
+                {
+                    int check = 0;
+                    for (int i = 0; i < 1 << 20; i++)
+                        check += uts[i % 16].Sum();
+                    return check;
+                });
+
+                Measure($"Devirt", warmup, () =>
+                {
+                    int check = 0;
+                    for (int i = 0; i < 1 << 20; i++)
+                        check += dts[i % 16].Sum();
+                    return check;
+                });
+
+            }
+
+
+        foreach (var result in results_)
+        {
+            Console.WriteLine(
+                $"Benchmarked avg of {result.Value.Count} samples totalling {result.Value.Average():F3} µs to {result.Key}");
+        }
+    }
+
     static void Main(string[] args)
+    {
+        //Tests1();
+        Tests2();
+
+        Console.ReadKey();
+    }
+
+    private static void Tests1()
     {
         int keysCount = 1 << 15;
         int maxValue = 1 << 16;
@@ -339,13 +479,12 @@ class Program
             keys[i] = r.Next(maxValue);
             ukeys[i] = (uint) keys[i];
         }
-        
-        foreach (var warmup in new[] { true, false })
+
+        foreach (var warmup in new[] {true, false})
             for (int li = 0; li < 40; li++)
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-
 
 
                 var dict = new Dictionary<int, int>();
@@ -398,13 +537,6 @@ class Program
                 //});
 
 
-
-
-
-
-
-
-
                 var um = new UInt32UInt32Map();
 
                 Measure($"Add to UInt32UInt32Map", warmup, () =>
@@ -423,7 +555,6 @@ class Program
                 });
 
 
-
                 var im = new Int32Int32Map();
 
                 Measure($"Add to Int32Int32Map", warmup, () =>
@@ -440,8 +571,6 @@ class Program
                         checksum += im.GetRef(keys[i]);
                     return checksum;
                 });
-
-
 
 
                 /*
@@ -481,52 +610,22 @@ class Program
                 bdict.Dispose(pool, pool, pool);
                 pool.Raw.Clear();
                 */
-
-
-
-
-
-
             }
 
 
         foreach (var result in results_)
         {
-            Console.WriteLine($"Benchmarked avg of {result.Value.Count} samples totalling {result.Value.Average():F3} µs to {result.Key}");
+            Console.WriteLine(
+                $"Benchmarked avg of {result.Value.Count} samples totalling {result.Value.Average():F3} µs to {result.Key}");
         }
 
 
-
-
-
-
-
-        
         //TestSetResizing<Buffer<int>, BufferPool<int>>(bufferPool);
 
-        
 
         //var arrayPool = new ArrayPool<int>();
         //TestSetResizing<Array<int>, ArrayPool<int>>(arrayPool);
         //arrayPool.Clear();
-
-
-
-
-        Console.ReadKey();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
