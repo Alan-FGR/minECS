@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace CodeGenerator
 {
@@ -37,14 +38,15 @@ namespace CodeGenerator
             //lines.Add("}");
         }
 
+
+
         static void Main(string[] args)
         {
-            int depth = 8;
+            int depth = 2;
 
-            //generate loops code since there's no variadic templates / generics :(
             var dels = new List<string>();
             var defs = new List<string>();
-            for (int i = 2; i < depth; i++)
+            for (int i = 2; i < depth+2; i++)
             {
                 var typeList = new List<string>();
                 var parList = new List<string>();
@@ -62,41 +64,77 @@ namespace CodeGenerator
                 del += ");";
                 dels.Add(del);
 
-                string def = "public void Loop<";
-                def += String.Join(", ", typeList);
-                def += ">(ProcessComponent<";
-                def += String.Join(", ", typeList);
-                def += "> loopAction)\r\n";
-                def += String.Join(" ", typeList.Select(x => "where "+x+" : struct"))+"\r\n";
-                def += "{\r\n";
+                StringBuilder sb = new StringBuilder();
 
-                def += "var componentBuffer = GetComponentBuffer<T1>();\r\n" +
-                       "var buffers = componentBuffer.__GetBuffers();\r\n" +
-                       "var entIdxs = buffers.keys;\r\n" +
-                       "var components = buffers.data;\r\n";
+                sb.Append("public void Loop<");
+                sb.Append(String.Join(", ", typeList));
+                sb.Append(">(ProcessComponent<");
+                sb.Append(String.Join(", ", typeList));
+                sb.Append("> loopAction)\r\n");
+                sb.Append(String.Join(" ", typeList.Select(x => "where "+x+" : struct"))+"\r\n");
+                sb.Append("{\r\n");
                 
-                var nestedLines = new List<string>();
+                sb.AppendLine("  List<ComponentBufferBase> denseBuffers = new List<ComponentBufferBase>();");
+                sb.AppendLine("  List<ComponentBufferBase> sparseBuffers = new List<ComponentBufferBase>();");
 
-                for (int j = 2; j < i; j++)
+                for (int j = 1; j < i; j++)
                 {
-                    nestedLines.Add($"var matcher{j} = GetComponentBuffer<T{j}>();");
-                    nestedLines.Add($"var matcher{j}Buffers = matcher{j}.__GetBuffers();");
+                    sb.AppendLine($"  var t{j}Base = componentsManager_.GetBufferSlow<T{j}>();");
+                    sb.AppendLine($"  if (t{j}Base.Sparse) sparseBuffers.Add(t{j}Base);");
+                    sb.AppendLine($"  else denseBuffers.Add(t{j}Base);");
+                }
+
+                sb.AppendLine("  var denseBuffersSorted = denseBuffers.OrderBy(x => x.ComponentCount).ToArray();");
+                sb.AppendLine("  var sparseBuffersSorted = sparseBuffers.OrderBy(x => x.ComponentCount).ToArray();");
+                sb.AppendLine("  int[] sortMapDense = MiscUtils.GetSortMap(denseBuffers, denseBuffersSorted);");
+                sb.AppendLine("  int[] sortMapSparse = MiscUtils.GetSortMap(sparseBuffers, sparseBuffersSorted);");
+                sb.AppendLine("  int denseCount = sortMapDense.Length;");
+                sb.AppendLine("  int sparseCount = sortMapSparse.Length;");
+
+
+
+                for (int j = 0; j < i; j++)
+                {
+                    int dense = j;
+                    int sparse = (i-1)-dense;
+
+                    sb.AppendLine($"  if (denseCount == {dense} && sparseCount == {sparse}){{");
+                    sb.AppendLine($"    if (sortMapDense.SequenceEqual(new[] {{ 0, 1 }}))");
+                    sb.AppendLine($"      Loop01Dense{dense}Sparse{sparse}(loopAction,");
+
+                    for (int k = 1; k < i; k++)
+                    {
+                        sb.AppendLine($"        (ComponentBufferDense<T{k}>)denseBuffersSorted[{k-1}]"+
+                                      ((k != i - 1) ? "," : ");"));
+                    }
+
+                    sb.AppendLine($"  }}");
                 }
 
 
-                nestedLines.Add("for (var i = components.Length - 1; i >= 0; i--){");
 
-                nestedLines.Add($"ref T1 component = ref components[i];");
-                nestedLines.Add($"int entIdx = entIdxs[i];");
-                nestedLines.Add($"ref EntityData entityData = ref GetDataFromIndex(entIdx);");
 
-                GenerateNestedSelectors(nestedLines, i-1);
 
-                nestedLines.Add("}//end for components");
-                nestedLines.Add("}//end function");
 
-                defs.Add(def);
-                defs.AddRange(nestedLines);
+                sb.AppendLine("}");
+
+
+
+//                var nestedLines = new List<string>();
+//                
+//                nestedLines.Add("for (var i = components.Length - 1; i >= 0; i--){");
+//
+//                nestedLines.Add($"ref T1 component = ref components[i];");
+//                nestedLines.Add($"int entIdx = entIdxs[i];");
+//                nestedLines.Add($"ref EntityData entityData = ref GetDataFromIndex(entIdx);");
+//
+//                GenerateNestedSelectors(nestedLines, i-1);
+//
+//                nestedLines.Add("}//end for components");
+//                nestedLines.Add("}//end function");
+
+                defs.Add(sb.ToString());
+//                defs.AddRange(nestedLines);
             }
 
 
@@ -108,7 +146,9 @@ namespace CodeGenerator
 
             var file = new List<string>();
             
-            file.Add("partial class EntityRegistry\r\n{");
+            file.Add("using System.Collections.Generic;\r\n" +
+                     "using System.Linq;\r\n" +
+                     "partial class EntityRegistry\r\n{");
             
             file.AddRange(dels);
             file.AddRange(defs);

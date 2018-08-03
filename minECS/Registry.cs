@@ -225,14 +225,14 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
         if (denseCount == 2 && sparseCount == 0)
         {
-            if (sortMapDense == new[] { 0, 1 })
+            if (sortMapDense.SequenceEqual(new[] { 0, 1 }))
                 Loop01Dense2Sparse0(loopAction,
                     (ComponentBufferDense<T1>)denseBuffersSorted[0],
                     (ComponentBufferDense<T2>)denseBuffersSorted[1]);
-            else if (sortMapDense == new[] { 1, 0 })
+            else if (sortMapDense.SequenceEqual(new[] { 1, 0 }))
                 Loop10Dense2Sparse0(loopAction,
-                    (ComponentBufferDense<T2>)denseBuffersSorted[1],
-                    (ComponentBufferDense<T1>)denseBuffersSorted[0]);
+                    (ComponentBufferDense<T2>)denseBuffersSorted[0],
+                    (ComponentBufferDense<T1>)denseBuffersSorted[1]);
         }
 
     }

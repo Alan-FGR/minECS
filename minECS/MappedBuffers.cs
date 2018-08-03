@@ -162,8 +162,7 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
     public void AddKey(TKey key, in TData data)
     {
-        //todo check tkey existence?
-        keysToIndices_[key] = AddEntry(key, data);
+        keysToIndices_.Add(key, AddEntry(key, data));
     }
 
     public void RemoveByKey(TKey key)

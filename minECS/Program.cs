@@ -66,16 +66,16 @@ class Program
 
         registry_ = new EntityRegistry(1<<preallocShift);
 
-        PrintRegistryDebug();
+//        PrintRegistryDebug();
 
         //create and register some component buffers
-        Print("Creating Component Buffers");
+//        Print("Creating Component Buffers");
 
         registry_.RegisterComponent<Position>(BufferType.Dense, 1<<preallocShift);
         registry_.RegisterComponent<Velocity>(BufferType.Dense, 1<<preallocShift);
         
-        PrintRegistryDebug();
-        PrintCompBufsDebug();
+//        PrintRegistryDebug();
+//        PrintCompBufsDebug();
 
 
 
@@ -97,7 +97,7 @@ class Program
         registry_.AddComponent(e3, new Position());
         //registry_.AddComponent(e3, new Velocity { x = 0, y = 1 });
 
-        registry_.Loop((EntIdx entIdx, ref Velocity vel, ref Position pos) =>
+        registry_.Loop((EntIdx entIdx, ref Position pos, ref Velocity vel) =>
         {
             pos.y += vel.y;
         });
