@@ -104,24 +104,24 @@ internal class ViewsManager
 internal partial class ComponentBuffersManager : IDebugData
 {
     public int Count { get; private set; } = 0;
-    private readonly IComponentBuffer[] buffers_ = new IComponentBuffer[sizeof(EntFlags) * 8];
+    private readonly ComponentBufferBase[] buffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
 
     private ComponentBuffer<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
     {
         for (var i = 0; i < Count; i++)
         {
-            IComponentBuffer buffer = buffers_[i];
+            ComponentBufferBase buffer = buffers_[i];
             if (buffer is ComponentBuffer<T> castBuffer)
                 return castBuffer;
         }
         return null; //todo error if buffer is not registered
     }
 
-    internal IEnumerable<IComponentBuffer> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
+    internal IEnumerable<ComponentBufferBase> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
     {
         for (var i = 0; i < Count; i++)
         {
-            IComponentBuffer buffer = buffers_[i];
+            ComponentBufferBase buffer = buffers_[i];
             if (buffer.Matcher.Matches(flags))
                 yield return buffer;
         }
@@ -224,7 +224,7 @@ partial class EntityRegistry : MappedBuffer<EntUID, EntityData>
         EntIdx entIdx = GetIndexFromKey(entUID);
         ref EntityData entData = ref GetDataFromIndex(entIdx);
         componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
-        RemoveEntry(entIdx);
+        RemoveByIndex(entIdx);
 
 //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
 //        foreach (var synced in syncedIndices_)

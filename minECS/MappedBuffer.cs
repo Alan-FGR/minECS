@@ -149,7 +149,12 @@ public class MappedBuffer<TKey, TData> : IDebugData, IMappedBuffer<TKey>
         Count++;
     }
 
-    public (TKey removedKey, TKey lastKey, int lastIndex) RemoveEntry(int index)
+    public void RemoveByKey(TKey key)
+    {
+        RemoveByIndex(GetIndexFromKey(key));
+    }
+
+    public (TKey removedKey, TKey lastKey, int lastIndex) RemoveByIndex(int index)
     {
         TKey removedKey = keys_[index];
         int lastIndex = Count - 1;

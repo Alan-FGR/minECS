@@ -25,67 +25,73 @@ public class ComponentMatcher
     }
 }
 
-public class SyncedComponentIndices
+//public class SyncedComponentIndices
+//{
+//    private ;
+//
+//    internal void ComponentAdded(EntIdx entIdx)
+//    {
+//        foreach (ViewBase view in views_)
+//            view.SyncBuffersAdded(matcher, entIdx);
+//    }
+//
+//    internal void ComponentRemoved(IComponentMatcher matcher, (EntIdx removedKey, EntIdx lastKey, int lastIndex) remData)
+//    {
+//        foreach (ViewBase view in views_)
+//            view.SyncBuffersRemoved(matcher, remData);
+//    }
+//
+////    internal void BufferSorted(IComponentMatcher matcher)
+////    {
+////        //todo when sorting components, if buffer is synced by any view, create a list of swappedpairs and get here
+////    }
+//}
+
+abstract class ComponentBufferBase
 {
-    private int[] indicesAlignedWithEntIdxs;
-
-    internal void ComponentAdded(EntIdx entIdx)
-    {
-        foreach (ViewBase view in views_)
-            view.SyncBuffersAdded(matcher, entIdx);
-    }
-
-    internal void ComponentRemoved(IComponentMatcher matcher, (EntIdx removedKey, EntIdx lastKey, int lastIndex) remData)
-    {
-        foreach (ViewBase view in views_)
-            view.SyncBuffersRemoved(matcher, remData);
-    }
-
-    internal void BufferSorted(IComponentMatcher matcher)
-    {
-        //todo when sorting components, if buffer is synced by any view, create a list of swappedpairs and get here
-    }
+    public ComponentMatcher Matcher { get; protected set; }
+    protected int[] SyncedIndices { get; set; } = null;
 }
 
-abstract class IComponentBuffer
-{
-    public ComponentMatcher Matcher { get; }
-    SyncedComponentIndices SyncedIndices { get; }
-}
-
-class ComponentBuffer<T> : IComponentBuffer
+class ComponentBuffer<T> : ComponentBufferBase, IDebugData
     where T : struct
 {
-
     private MappedBuffer<EntIdx, T> buffer_;
-    public new ComponentMatcher Matcher { get; }
-    public SyncedComponentIndices SyncedIndices { get; } = null;
-
-    public EntFlags Flag { get; } //devirt
     
-    public ComponentBuffer(int bufferIndex, int initialSize = 1 << 10) : base(initialSize)
+    public ComponentBuffer(int bufferIndex, int initialSize = 1 << 10)
     {
+        buffer_ = new MappedBuffer<EntIdx, T>(initialSize);
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
-        Flag = flag;
     }
 
     public void AddComponent(EntIdx entIdx, in T component)
     {
-        AddEntry(entIdx, component);
-        SyncedIndices?.ComponentAdded(entIdx);
+        if (SyncedIndices != null)
+            SyncedIndices[entIdx] = buffer_.Count;
+        buffer_.AddEntry(entIdx, component);
     }
 
-//    public (EntIdx removedKey, EntIdx lastKey, int lastIndex) RemoveEntIdx(EntIdx index)
-//    {
-//        return RemoveEntry(index);
-//    }
+    public void RemoveComponent(EntIdx entIdx)
+    {
+        if (SyncedIndices != null)
+        {
+            var indexToRemove = buffer_.GetIndexFromKey(entIdx);
+            var remData = buffer_.RemoveByIndex(indexToRemove);
+            SyncedIndices[entIdx] = -1;
+            SyncedIndices[remData.lastKey] = remData.lastIndex;
+        }
+        else
+        {
+            buffer_.RemoveByKey(entIdx);
+        }
+    }
 
-    public override string GetDebugData(bool detailed)
+    public string GetDebugData(bool detailed)
     {
         return
             $"  Flag: {Convert.ToString((long)Matcher.Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-            base.GetDebugData(detailed);
+            buffer_.GetDebugData(detailed);
     }
 
 }
