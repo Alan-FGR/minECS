@@ -197,47 +197,31 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         ComponentsThenTags,
     }
 
-    public delegate void ProcessComponent<T1, T2>(int entIdx, ref T1 component1, ref T2 component2);
+    public delegate void ProcessComponent<T0, T1>(int entIdx, ref T0 component1, ref T1 component2);
 
-    public void Loop<T1, T2>(ProcessComponent<T1, T2> loopAction)
-        where T1 : struct where T2 : struct
+    public void Loop<T0, T1>(ProcessComponent<T0, T1> loopAction)
+        where T0 : struct where T1 : struct
     {
-        List<ComponentBufferBase> denseBuffers = new List<ComponentBufferBase>();
-        List<ComponentBufferBase> sparseBuffers = new List<ComponentBufferBase>();
+        ushort typeMask = 0;
+
+        var t0Base = componentsManager_.GetBufferSlow<T0>();
+        if (t0Base.Sparse) typeMask |= 1 << 0;
 
         var t1Base = componentsManager_.GetBufferSlow<T1>();
-        if (t1Base.Sparse) sparseBuffers.Add(t1Base);
-        else denseBuffers.Add(t1Base);
+        if (t1Base.Sparse) typeMask |= 1 << 1;
 
-        var t2Base = componentsManager_.GetBufferSlow<T2>();
-        if (t2Base.Sparse) sparseBuffers.Add(t2Base);
-        else denseBuffers.Add(t2Base);
-
-        // sort buffers by component count
-        var denseBuffersSorted = denseBuffers.OrderBy(x => x.ComponentCount).ToArray();
-        var sparseBuffersSorted = sparseBuffers.OrderBy(x => x.ComponentCount).ToArray();
-
-        int[] sortMapDense = MiscUtils.GetSortMap(denseBuffers, denseBuffersSorted);
-        int[] sortMapSparse = MiscUtils.GetSortMap(sparseBuffers, sparseBuffersSorted);
-
-        int denseCount = sortMapDense.Length;
-        int sparseCount = sortMapSparse.Length;
-
-        if (denseCount == 2 && sparseCount == 0)
+        switch (typeMask)
         {
-            if (sortMapDense.SequenceEqual(new[] { 0, 1 }))
-                Loop01Dense2Sparse0(loopAction,
-                    (ComponentBufferDense<T1>)denseBuffersSorted[0],
-                    (ComponentBufferDense<T2>)denseBuffersSorted[1]);
-            else if (sortMapDense.SequenceEqual(new[] { 1, 0 }))
-                Loop10Dense2Sparse0(loopAction,
-                    (ComponentBufferDense<T2>)denseBuffersSorted[0],
-                    (ComponentBufferDense<T1>)denseBuffersSorted[1]);
+            case 0b_0000_0000_0000_0000:
+                Loop00(loopAction,
+                    (ComponentBufferDense<T0>)t0Base,
+                    (ComponentBufferDense<T1>)t1Base
+                ); return;
         }
 
     }
 
-    public void Loop01Dense2Sparse0<T1, T2>(
+    public void Loop00<T1, T2>(
         ProcessComponent<T1, T2> loopAction,
         ComponentBufferDense<T1> t1B, ComponentBufferDense<T2> t2B
         )
@@ -262,31 +246,5 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
             }
         }
     }
-
-    public void Loop10Dense2Sparse0<T1, T2>(
-        ProcessComponent<T1, T2> loopAction,
-        ComponentBufferDense<T2> t1B, ComponentBufferDense<T1> t2B
-    )
-        where T1 : struct where T2 : struct
-    {
-        var compBuffers = t1B.__GetBuffers();
-        var compIdx2EntIdx = compBuffers.i2EntIdx;
-        var components = compBuffers.data;
-
-        var matcher2Flag = t2B.Matcher.Flag;
-        var matcher2Buffers = t2B.__GetBuffers();
-        for (var i = components.Length - 1; i >= 0; i--)
-        {
-            ref T2 component = ref components[i];
-            EntIdx entIdx = compIdx2EntIdx[i];
-            ref EntityData entityData = ref data_[entIdx];
-            if ((entityData.FlagsDense & matcher2Flag) != 0)
-            {
-                int indexInMatcher2 = matcher2Buffers.entIdx2i[entIdx];
-                ref T1 component2 = ref matcher2Buffers.data[indexInMatcher2];
-                loopAction(entIdx, ref component2, ref component);
-            }
-        }
-    }
-
+    
 }
