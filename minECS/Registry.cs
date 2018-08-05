@@ -188,18 +188,18 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
     #endregion
 
     //TODO filter loops by tag too
-    //TODO in loop, sort buffers by entries count
+    //TODO in loop, sort buffers by entries count NOT VIABLE
+
+    //TODO signatures:
+    //              prefiltertags, action
+    //              prefiltertags, action, postfilterexcludetags
+    //              prefiltertags, action, postfilterexcludecomponents
+    //              prefiltertags, action, postfilterexcludetags, postfilterexcludecomponents
+    //              action, postfilterexcludetags, postfilterexcludecomponents
+    //              action, postfilterexcludecomponents
 
 
-    enum MatchingOrder
-    {
-        TagsThenComponents,
-        ComponentsThenTags,
-    }
-
-    public delegate void ProcessComponent<T0, T1>(int entIdx, ref T0 component1, ref T1 component2);
-
-    public void Loop<T0, T1>(ProcessComponent<T0, T1> loopAction)
+    public void Loop<T0, T1>(Tag preFilterTags, ProcessComponent<T0, T1> loopAction)
         where T0 : struct where T1 : struct
     {
         ushort typeMask = 0;
@@ -213,7 +213,7 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         switch (typeMask)
         {
             case 0b_0000_0000_0000_0000:
-                Loop00(loopAction,
+                Loop00(preFilterTags, loopAction,
                     (ComponentBufferDense<T0>)t0Base,
                     (ComponentBufferDense<T1>)t1Base
                 ); return;
@@ -221,7 +221,7 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
     }
 
-    public void Loop00<T1, T2>(
+    public void Loop00<T1, T2>(Tag preFilterTags,
         ProcessComponent<T1, T2> loopAction,
         ComponentBufferDense<T1> t1B, ComponentBufferDense<T2> t2B
         )
