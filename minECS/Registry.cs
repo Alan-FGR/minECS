@@ -120,17 +120,20 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         return newUID;
     }
 
-//    public void DeleteEntity(EntUID entUID)
-//    {
-//        EntIdx entIdx = GetIndexFromKey(entUID);
-//        ref EntityData entData = ref GetDataFromIndex(entIdx);
-//        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
-//        RemoveByIndex(entIdx);
-//
-////        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
-////        foreach (var synced in syncedIndices_)
-////            synced.indicesMap[index] = -1;
-//    }
+    public void DeleteEntity(EntUID entUID)
+    {
+        EntIdx entIdx = GetIndexFromKey(entUID);
+        ref EntityData entData = ref GetDataFromIndex(entIdx);
+        componentsManager_.RemoveAllComponents(entIdx, ref entData);
+        var replaced = RemoveKey(entUID);
+
+        ref EntityData replacingData = ref GetDataFromIndex(entIdx);
+        componentsManager_.UpdateEntityIndex(ref replacingData, replaced.replacedIndex, entIdx);
+
+        //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
+        //        foreach (var synced in syncedIndices_)
+        //            synced.indicesMap[index] = -1;
+    }
 
     public void RegisterComponent<T>(BufferType bufferType, int initialSize = 1 << 10) where T : struct
     {

@@ -73,14 +73,21 @@ internal partial class ComponentBuffersManager : IDebugString
         buffer.RemoveComponent(entIdx, ref dataToSetFlags);
     }
 
-//    public void RemoveAllComponents(EntIdx entIdx, EntFlags flags)
-//    {
-//        foreach (var matcher in MatchersFromFlagsSlow(flags))
-//        {
-//            matcher.RemoveEntIdx(entIdx);
-//            viewsManager_.ComponentRemoved(matcher, entIdx);
-//        }
-//    }
+    public void RemoveAllComponents(EntIdx entIdx, ref EntityData entityData)
+    {
+        foreach (var buffer in MatchersFromFlagsSlow(entityData.FlagsDense))
+        {
+            buffer.RemoveComponent(entIdx, ref entityData);
+        }
+    }
+
+    public void UpdateEntityIndex(ref EntityData entityData, EntIdx oldIdx, EntIdx newIdx)
+    {
+        foreach (var buffer in MatchersFromFlagsSlow(entityData.FlagsDense))
+        {
+            buffer.UpdateEntIdx(oldIdx, newIdx);
+        }
+    }
 
     public string GetDebugString(bool detailed = false)
     {

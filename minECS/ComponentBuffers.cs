@@ -54,6 +54,14 @@ public abstract class ComponentBufferBase : IDebugString
     public abstract int ComponentCount { get; }
 
     public abstract void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags);
+    public abstract void UpdateEntIdx(int oldIdx, int newIdx);
+
+    public bool HasComponent(ref EntityData entityData)
+    {
+        if (Sparse)
+            return (entityData.FlagsSparse & Matcher.Flag) != 0;
+        return (entityData.FlagsDense & Matcher.Flag) != 0;
+    }
 
     public abstract string GetDebugString(bool detailed);
     public abstract (EntFlags flag, EntIdx[] endIdxs) GetDebugFlagAndEntIdxs();
@@ -93,6 +101,11 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
     {
         buffer_.RemoveKey(entIdx);
         dataToSetFlags.FlagsDense ^= Matcher.Flag;
+    }
+
+    public override void UpdateEntIdx(EntIdx oldIdx, EntIdx newIdx)
+    {
+        buffer_.UpdateKey(oldIdx, newIdx);
     }
 
     public override string GetDebugString(bool detailed)
@@ -151,6 +164,11 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
     {
         buffer_.RemoveKey(entIdx);
         dataToSetFlags.FlagsDense ^= Matcher.Flag;
+    }
+
+    public override void UpdateEntIdx(int oldIdx, int newIdx)
+    {
+        throw new NotImplementedException();
     }
 
     public override string GetDebugString(bool detailed)

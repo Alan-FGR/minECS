@@ -60,7 +60,7 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
     }
 
     /// <summary> Returns key of the element that replaced the removed one </summary>
-    protected TKey RemoveByIndex(int indexToRemove)
+    protected (TKey replacingKey, int replacedIndex) RemoveByIndex(int indexToRemove)
     {
         int lastIndex = Count - 1;
         TKey lastKey = indicesToKeys_[lastIndex];
@@ -69,8 +69,10 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
         indicesToKeys_[indexToRemove] = lastKey; //update key stored in index
         Count--;
 
-        return lastKey;
+        return (lastKey, lastIndex);
     }
+
+    public abstract void UpdateKey(TKey oldKey, TKey newKey);
 
     public abstract string GetDebugString(bool detailed);
 }
@@ -108,12 +110,21 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         keysToIndices_.Add(key, AddEntry(key, data));
     }
 
-    protected internal void RemoveKey(TKey key)
+    protected internal (TKey replacingKey, int replacingIdx, int replacedIndex) RemoveKey(TKey key)
     {
         var newIndex = GetIndexFromKey(key);
-        var replacedKey = RemoveByIndex(newIndex);
-        keysToIndices_[replacedKey] = newIndex; //update index of last key
+        (TKey replacingKey, int replacedIndex) removed = RemoveByIndex(newIndex);
+        keysToIndices_[removed.replacingKey] = newIndex; //update index of last key
         keysToIndices_.Remove(key);
+        return (removed.replacingKey, newIndex, removed.replacedIndex);
+    }
+
+    public override void UpdateKey(TKey oldKey, TKey newKey)
+    {
+        var replacedKeyVal = keysToIndices_[oldKey];
+        indicesToKeys_[replacedKeyVal] = 
+        keysToIndices_.Remove(oldKey);
+        keysToIndices_.Add(newKey, replacedKeyVal);
     }
 
     public override string GetDebugString(bool detailed)
@@ -163,7 +174,12 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         var newIndex = GetIndexFromKey(key);
         var replacedKey = RemoveByIndex(newIndex);
         keysToIndices_[key] = -1;
-        keysToIndices_[replacedKey] = newIndex; //update index of last key
+        //keysToIndices_[replacedKey] = newIndex; //update index of last key
+    }
+
+    public override void UpdateKey(int oldKey, int newKey)
+    {
+        throw new NotImplementedException();
     }
 
     public override string GetDebugString(bool detailed)
