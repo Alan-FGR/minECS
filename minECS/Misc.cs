@@ -39,7 +39,7 @@ static class BitUtils
     }
 }
 
-public interface IDebugData
+public interface IDebugString
 {
-    string GetDebugData(bool detailed);
+    string GetDebugString(bool detailed);
 }

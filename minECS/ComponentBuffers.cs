@@ -47,7 +47,7 @@ public class ComponentMatcher
 ////    }
 //}
 
-abstract class ComponentBufferBase : IDebugData
+public abstract class ComponentBufferBase : IDebugString
 {
     public ComponentMatcher Matcher { get; protected set; }
     public bool Sparse { get; protected set; }
@@ -55,15 +55,16 @@ abstract class ComponentBufferBase : IDebugData
 
     public abstract void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags);
 
-    public abstract string GetDebugData(bool detailed);
+    public abstract string GetDebugString(bool detailed);
+    public abstract (EntFlags flag, EntIdx[] endIdxs) GetDebugFlagAndEntIdxs();
 }
 
-abstract class TypedComponentBufferBase<T> : ComponentBufferBase
+public abstract class TypedComponentBufferBase<T> : ComponentBufferBase
 {
     public abstract void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags);
 }
 
-class ComponentBufferDense<T> : TypedComponentBufferBase<T>
+public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
     where T : struct
 {
     private MappedBufferDense<EntIdx, T> buffer_;
@@ -72,7 +73,7 @@ class ComponentBufferDense<T> : TypedComponentBufferBase<T>
 
     public ComponentBufferDense(int bufferIndex, int initialSize = 1 << 10)
     {
-        buffer_ = new MappedBufferDense<EntIdx, T>(initialSize);
+        buffer_ = new MappedBufferDense<EntIdx, T>();
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
     }
@@ -90,15 +91,20 @@ class ComponentBufferDense<T> : TypedComponentBufferBase<T>
 
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
-        buffer_.RemoveByKey(entIdx);
+        buffer_.RemoveKey(entIdx);
         dataToSetFlags.FlagsDense ^= Matcher.Flag;
     }
 
-    public override string GetDebugData(bool detailed)
+    public override string GetDebugString(bool detailed)
     {
         return
             $"  Flag: {Convert.ToString((long)Matcher.Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-            buffer_.GetDebugData(detailed);
+            buffer_.GetDebugString(detailed);
+    }
+
+    public override (ulong flag, int[] endIdxs) GetDebugFlagAndEntIdxs()
+    {
+        return (Matcher.Flag, buffer_.__GetBuffers().i2k);
     }
 }
 
@@ -125,7 +131,7 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public ComponentBufferSparse(int bufferIndex, int initialSize = 1 << 10)
     {
-        buffer_ = new MappedBufferDense<EntIdx, T>(initialSize);
+        buffer_ = new MappedBufferDense<EntIdx, T>();
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
     }
@@ -143,14 +149,19 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
-        buffer_.RemoveByKey(entIdx);
+        buffer_.RemoveKey(entIdx);
         dataToSetFlags.FlagsDense ^= Matcher.Flag;
     }
 
-    public override string GetDebugData(bool detailed)
+    public override string GetDebugString(bool detailed)
     {
         return
             $"  Flag: {Convert.ToString((long)Matcher.Flag, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-            buffer_.GetDebugData(detailed);
+            buffer_.GetDebugString(detailed);
+    }
+
+    public override (ulong flag, int[] endIdxs) GetDebugFlagAndEntIdxs()
+    {
+        throw new NotImplementedException();
     }
 }

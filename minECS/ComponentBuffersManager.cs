@@ -9,7 +9,7 @@ using EntUID = System.UInt64;
 using EntFlags = System.UInt64;
 using EntTags = System.UInt64;
 
-enum BufferType
+public enum BufferType
 {
     /// <summary> Fast to loop, but uses more memory (32KiB per 1024 entities). Use for common components (e.g. position). </summary>
     Sparse,
@@ -17,7 +17,7 @@ enum BufferType
     Dense,
 }
 
-internal partial class ComponentBuffersManager : IDebugData
+internal partial class ComponentBuffersManager : IDebugString
 {
     public int DenseCount { get; private set; } = 0;
     private readonly ComponentBufferBase[] denseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
@@ -82,7 +82,7 @@ internal partial class ComponentBuffersManager : IDebugData
 //        }
 //    }
 
-    public string GetDebugData(bool detailed = false)
+    public string GetDebugString(bool detailed = false)
     {
         string s = "Registered Component Buffers:\n";
         for (var i = 0; i < DenseCount; i++)
@@ -90,7 +90,7 @@ internal partial class ComponentBuffersManager : IDebugData
             ComponentBufferBase matcher = denseBuffers_[i];
             s += $" {matcher.GetType().GenericTypeArguments[0].Name}";
             if (detailed)
-                s += $"\n {matcher.GetDebugData(false)}\n";
+                s += $"\n {matcher.GetDebugString(false)}\n";
         }
 
         return s;

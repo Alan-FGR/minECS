@@ -103,14 +103,14 @@ internal class ViewsManager
 }
 */
 
-partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
+public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
 
     private ComponentBuffersManager componentsManager_ = new ComponentBuffersManager();
     //    public TagsManager TagsManager = new TagsManager();
     
-    public EntityRegistry(int initialSize = 1 << 10) : base(initialSize) { }
+    public EntityRegistry(int initialSize = 1 << 10) : base() { }//todo
     
     public EntUID CreateEntity(EntTags tags = 0)
     {
@@ -171,7 +171,7 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
             ;
     }
 
-    public override string GetDebugData(bool detailed = false)
+    public override string GetDebugString(bool detailed = false)
     {
         string s =
             $"Entity count: {Count}, UID Dict Entries: {KeysToIndicesDebug.Count}, Component Buffers: {componentsManager_.DenseCount}";
@@ -183,6 +183,11 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
             s += "\n";
         }
         return s;
+    }
+
+    public IEnumerable<ComponentBufferBase> GetDebugComponentBufferBases()
+    {
+        return componentsManager_.MatchersFromFlagsSlow(ulong.MaxValue);
     }
 
     #endregion
@@ -198,6 +203,21 @@ partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
     //              action, postfilterexcludetags, postfilterexcludecomponents
     //              action, postfilterexcludecomponents
 
+    public enum CollectionType
+    {
+        Dictionary, Array
+    }
+
+    public
+        (
+        EntityData[] entityData,
+        EntIdx[] buf0Idx2EntIdx, T0[] buf0Data, object EntIdx2buf0Idx, CollectionType EntIdx2buf0IdxType,
+        EntIdx[] buf1Idx2EntIdx, T1[] buf1Data, object EntIdx2buf1Idx, CollectionType EntIdx2buf1IdxType
+        )
+        CustomLoop<T0, T1>()
+    {
+        throw new NotImplementedException();
+    }
 
     public void Loop<T0, T1>(Tag preFilterTags, ProcessComponent<T0, T1> loopAction)
         where T0 : struct where T1 : struct

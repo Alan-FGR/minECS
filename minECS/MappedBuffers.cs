@@ -9,12 +9,13 @@ using EntUID = System.UInt64; // ain't no C++ :(
 using EntFlags = System.UInt64; // component flags
 using EntTags = System.UInt64;
 
-public abstract class MappedBufferBase<TKey, TData> : IDebugData
+public abstract class MappedBufferBase<TKey, TData> : IDebugString
     where TKey : struct where TData : struct
 {
     protected TData[] data_;
     protected TKey[] indicesToKeys_; //same indices as data_
     public int Count { get; private set; }
+    //public event Action<int> OnBufferSizeChanged;
 
     protected MappedBufferBase(int initialSize)
     {
@@ -36,7 +37,6 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugData
     /// <summary> Returns index of the new element </summary>
     protected int AddEntry(TKey key, in TData data)
     {
-        //todo check tkey existence
         int currentIndex = Count;
 
         if (data_.Length <= currentIndex) //expand buffer as needed
@@ -72,7 +72,56 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugData
         return lastKey;
     }
 
-    public abstract string GetDebugData(bool detailed);
+    public abstract string GetDebugString(bool detailed);
+}
+
+public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
+    where TKey : struct where TData : struct
+{
+    private readonly Dictionary<TKey, int> keysToIndices_;
+
+    protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
+
+    public MappedBufferDense() : base(32)
+    {
+        // NOTE: We intentionally don't use initialSize for dense buffers
+        keysToIndices_ = new Dictionary<TKey, int>(32); 
+    }
+
+    public (Dictionary<TKey, int> k2i, TKey[] i2k, TData[] data) __GetBuffers()
+    {
+        return (keysToIndices_, indicesToKeys_, data_);
+    }
+
+    internal int GetIndexFromKey(TKey key)
+    {
+        return keysToIndices_[key];
+    }
+
+    public ref TData GetDataFromKey(TKey key)
+    {
+        return ref data_[keysToIndices_[key]];
+    }
+
+    protected internal void AddKey(TKey key, in TData data)
+    {
+        keysToIndices_.Add(key, AddEntry(key, data));
+    }
+
+    protected internal void RemoveKey(TKey key)
+    {
+        var newIndex = GetIndexFromKey(key);
+        var replacedKey = RemoveByIndex(newIndex);
+        keysToIndices_[replacedKey] = newIndex; //update index of last key
+        keysToIndices_.Remove(key);
+    }
+
+    public override string GetDebugString(bool detailed)
+    {
+        return
+        $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
+        $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
+    }
 }
 
 public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
@@ -103,13 +152,13 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         return ref data_[keysToIndices_[key]];
     }
 
-    public void AddKey(int key, in TData data)
+    protected void AddKey(int key, in TData data)
     {
         //todo check tkey existence?
         keysToIndices_[key] = AddEntry(key, data);
     }
 
-    public void RemoveByKey(int key)
+    protected void RemoveKey(int key)
     {
         var newIndex = GetIndexFromKey(key);
         var replacedKey = RemoveByIndex(newIndex);
@@ -117,66 +166,10 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         keysToIndices_[replacedKey] = newIndex; //update index of last key
     }
 
-    public override string GetDebugData(bool detailed)
+    public override string GetDebugString(bool detailed)
     {
         return
             $"  Entries: {Count}, Sparse Entries: {keysToIndices_.Length}\n" +
             $"  Map: {string.Join(", ", keysToIndices_.Where(x => x >= 0))}";
-    }
-}
-
-public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
-    where TKey : struct where TData : struct
-{
-    private readonly Dictionary<TKey, int> keysToIndices_;
-
-    protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
-    internal event Action<int> OnBufferGrow;
-
-    public MappedBufferDense(int initialSize = 1 << 10) : base(initialSize)
-    {
-        keysToIndices_ = new Dictionary<TKey, int>(initialSize);
-    }
-
-    internal (Dictionary<TKey, int> k2i, TKey[] i2k, TData[] data) __GetBuffers()
-    {
-        return (keysToIndices_, indicesToKeys_, data_);
-    }
-
-    internal int GetIndexFromKey(TKey key)
-    {
-        return keysToIndices_[key];
-    }
-
-    public int TryGetIndexFromKey(TKey key)
-    {
-        if (keysToIndices_.TryGetValue(key, out int value))
-            return value;
-        return -1;
-    }
-
-    public ref TData GetDataFromKey(TKey key)
-    {
-        return ref data_[keysToIndices_[key]];
-    }
-
-    public void AddKey(TKey key, in TData data)
-    {
-        keysToIndices_.Add(key, AddEntry(key, data));
-    }
-
-    public void RemoveByKey(TKey key)
-    {
-        var newIndex = GetIndexFromKey(key);
-        var replacedKey = RemoveByIndex(newIndex);
-        keysToIndices_[replacedKey] = newIndex; //update index of last key
-        keysToIndices_.Remove(key);
-    }
-
-    public override string GetDebugData(bool detailed)
-    {
-        return
-        $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
-        $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
     }
 }

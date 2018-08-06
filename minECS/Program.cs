@@ -37,7 +37,7 @@ class Program
 
     static void PrintRegistryDebug(bool detailed = false)
     {
-        Console.WriteLine(registry_.GetDebugData(detailed) + "\n");
+        Console.WriteLine(registry_.GetDebugString(detailed) + "\n");
     }
 
     static void PrintEntityDebug(EntUID entUID)
