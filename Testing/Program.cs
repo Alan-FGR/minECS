@@ -9,11 +9,21 @@ using Microsoft.Xna.Framework.Graphics;
 struct Position
 {
     public Vector2 pos;
+
+    public override string ToString()
+    {
+        return $"{(int) pos.X}\n{(int) pos.Y}";
+    }
 }
 
 struct Velocity
 {
     public Vector2 vel;
+    
+    public override string ToString()
+    {
+        return $"{(int)vel.X}\n{(int)vel.Y}";
+    }
 }
 
 struct Rect
@@ -53,28 +63,28 @@ public class MinEcsTest : Game
 
         registry.RegisterComponent<Position>(BufferType.Dense,1);
         registry.RegisterComponent<Velocity>(BufferType.Dense,1);
-//        registry.RegisterComponent<Rect>(BufferType.Dense,1);
-//        registry.RegisterComponent<Name>(BufferType.Dense,1);
-//        registry.RegisterComponent<Health>(BufferType.Dense,1);
+        registry.RegisterComponent<Rect>(BufferType.Dense,1);
+        registry.RegisterComponent<Name>(BufferType.Dense,1);
+        registry.RegisterComponent<Health>(BufferType.Dense,1);
 
-//        var r = new Random(42);
-//        for (int i = 0; i < 32; i++)
-//        {
-//            var e = registry.CreateEntity();
-//            if(r.Next(10) < 8) registry.AddComponent(e, new Position());
-//            if(r.Next(10) < 4) registry.AddComponent(e, new Velocity());
-//            if(r.Next(10) < 4) registry.AddComponent(e, new Health());
-//            if(r.Next(10) < 4) registry.AddComponent(e, new Name());
-//            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
-//        }
+        var r = new Random(42);
+        for (int i = 0; i < 32; i++)
+        {
+            var e = registry.CreateEntity();
+            if(r.Next(10) < 8) registry.AddComponent(e, new Position());
+            if(r.Next(10) < 7) registry.AddComponent(e, new Velocity{vel = new Vector2(r.Next(-2, 2), r.Next(-2, 2)) });
+            if(r.Next(10) < 6) registry.AddComponent(e, new Health());
+            if(r.Next(10) < 5) registry.AddComponent(e, new Name());
+            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
+        }
 
-        var e = registry.CreateEntity();
-        registry.AddComponent(e, new Position());
-        registry.AddComponent(e, new Velocity { vel = new Vector2(1,1) });
-
-        var e1 = registry.CreateEntity();
-        registry.AddComponent(e1, new Position());
-        registry.AddComponent(e1, new Velocity { vel = new Vector2(1, 1) });
+//        var e = registry.CreateEntity();
+//        registry.AddComponent(e, new Position());
+//        registry.AddComponent(e, new Velocity { vel = new Vector2(1,1) });
+//
+//        var e1 = registry.CreateEntity();
+//        registry.AddComponent(e1, new Position());
+//        registry.AddComponent(e1, new Velocity { vel = new Vector2(1, 1) });
 
         //var e2 = registry.CreateEntity();
         //registry.AddComponent(e2, new Position());
@@ -89,6 +99,7 @@ public class MinEcsTest : Game
     {
         sb = new SpriteBatch(gfx);
         sf = Content.Load<SpriteFont>("Font.xnb");
+        sf.LineSpacing = 7;
         px = new Texture2D(GraphicsDevice, 1, 1);
         px.SetData(new[] { Color.White });
 
@@ -245,6 +256,13 @@ public class MinEcsTest : Game
         var b = (ComponentBufferDense<T>) buf;
         var buffers = b.__GetBuffers();
         RenderDenseMap(pos, buffers.entIdx2i, 28, keysRenderPos);
+
+        for (var i = 0; i < buffers.data.Length; i++)
+        {
+            T comp = buffers.data[i];
+            Vector2 dpos = ind2pos(pos + Vector2.UnitY * 8 + Vector2.UnitX * 28, i);
+            DrawString(dpos, comp.ToString(), Color.DarkSlateGray);
+        }
     }
 
     private void RenderDenseMap<T>(Vector2 k2iPos, Dictionary<T, int> map, int hspc, Dictionary<T, Vector2> keysRenderPos)
