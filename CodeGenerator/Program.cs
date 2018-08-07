@@ -113,6 +113,7 @@ namespace CodeGenerator
                     fsb.AppendLine("{");
 
                     fsb.AppendLine($"  var compBuffers = t0B.__GetBuffers();");
+                    fsb.AppendLine($"  var lastCompIndex = t0B.ComponentCount-1;");
                     fsb.AppendLine($"  var compIdx2EntIdx = compBuffers.i2EntIdx;");
                     fsb.AppendLine($"  var components = compBuffers.data;");
 
@@ -122,7 +123,7 @@ namespace CodeGenerator
                         fsb.AppendLine($"  var matcher{j}Buffers = t{j}B.__GetBuffers();");
                     }
 
-                    fsb.AppendLine("  for (var i = components.Length - 1; i >= 0; i--) {");
+                    fsb.AppendLine("  for (var i = lastCompIndex; i >= 0; i--) {");
                     fsb.AppendLine("    ref T0 component0 = ref components[i];");
                     fsb.AppendLine("    EntIdx entIdx = compIdx2EntIdx[i];");
                     fsb.AppendLine("    ref EntityData entityData = ref data_[entIdx];");

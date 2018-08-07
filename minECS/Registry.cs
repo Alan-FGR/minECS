@@ -125,10 +125,12 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         EntIdx entIdx = GetIndexFromKey(entUID);
         ref EntityData entData = ref GetDataFromIndex(entIdx);
         componentsManager_.RemoveAllComponents(entIdx, ref entData);
-        var replaced = RemoveKey(entUID);
+
+        var replaced = RemoveKey(entUID); //todo rev rets
 
         ref EntityData replacingData = ref GetDataFromIndex(entIdx);
-        componentsManager_.UpdateEntityIndex(ref replacingData, replaced.replacedIndex, entIdx);
+
+        componentsManager_.UpdateEntityIndex(ref replacingData, replaced.lastIndex, entIdx);
 
         //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
         //        foreach (var synced in syncedIndices_)

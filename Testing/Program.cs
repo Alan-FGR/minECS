@@ -53,17 +53,28 @@ public class MinEcsTest : Game
 
         registry.RegisterComponent<Position>(BufferType.Dense,1);
         registry.RegisterComponent<Velocity>(BufferType.Dense,1);
-        registry.RegisterComponent<Rect>(BufferType.Dense,1);
-        registry.RegisterComponent<Name>(BufferType.Dense,1);
-        registry.RegisterComponent<Health>(BufferType.Dense,1);
+//        registry.RegisterComponent<Rect>(BufferType.Dense,1);
+//        registry.RegisterComponent<Name>(BufferType.Dense,1);
+//        registry.RegisterComponent<Health>(BufferType.Dense,1);
+
+//        var r = new Random(42);
+//        for (int i = 0; i < 32; i++)
+//        {
+//            var e = registry.CreateEntity();
+//            if(r.Next(10) < 8) registry.AddComponent(e, new Position());
+//            if(r.Next(10) < 4) registry.AddComponent(e, new Velocity());
+//            if(r.Next(10) < 4) registry.AddComponent(e, new Health());
+//            if(r.Next(10) < 4) registry.AddComponent(e, new Name());
+//            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
+//        }
 
         var e = registry.CreateEntity();
         registry.AddComponent(e, new Position());
-        //registry.AddComponent(e, new Velocity { vel = new Vector2(1,1) });
+        registry.AddComponent(e, new Velocity { vel = new Vector2(1,1) });
 
         var e1 = registry.CreateEntity();
         registry.AddComponent(e1, new Position());
-        //registry_.AddComponent(e1, new Velocity { x = 0, y = 1 });
+        registry.AddComponent(e1, new Velocity { vel = new Vector2(1, 1) });
 
         //var e2 = registry.CreateEntity();
         //registry.AddComponent(e2, new Position());
@@ -89,11 +100,6 @@ public class MinEcsTest : Game
 
     protected override void Update(GameTime gameTime)
     {
-        registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
-        {
-            pos.pos += vel.vel;
-        });
-
         base.Update(gameTime);
     }
 
@@ -204,7 +210,7 @@ public class MinEcsTest : Game
         var sp = k2iPos + Vector2.UnitY * 64;
 
         int c = 0;
-        var cols = new[]{Color.Red, Color.Yellow, Color.Lime, Color.Cyan, Color.CadetBlue, };
+        var cols = new[]{Color.Red, Color.Yellow, Color.Lime, Color.HotPink, Color.CadetBlue, };
 
         foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())
         {
@@ -296,6 +302,11 @@ public class MinEcsTest : Game
 
     protected override void Draw(GameTime gameTime)
     {
+        registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
+        {
+            pos.pos += vel.vel;
+        });
+
         gfx.Clear(Color.Black);
 
         curState = Mouse.GetState();

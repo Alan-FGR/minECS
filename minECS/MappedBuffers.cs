@@ -13,20 +13,20 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
     where TKey : struct where TData : struct
 {
     protected TData[] data_;
-    protected TKey[] indicesToKeys_; //same indices as data_
+    protected TKey[] keys_; //same indices as data_
     public int Count { get; private set; }
     //public event Action<int> OnBufferSizeChanged;
 
     protected MappedBufferBase(int initialSize)
     {
         data_ = new TData[initialSize];
-        indicesToKeys_ = new TKey[initialSize];
+        keys_ = new TKey[initialSize];
         Count = 0;
     }
 
     protected TKey GetKeyFromIndex(int index)
     {
-        return indicesToKeys_[index];
+        return keys_[index];
     }
 
     protected ref TData GetDataFromIndex(int index)
@@ -47,31 +47,36 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
             var newData = new TData[newSize];
             var newIndicesToKeys = new TKey[newSize];
             Array.Copy(data_, 0, newData, 0, dataLength);
-            Array.Copy(indicesToKeys_, 0, newIndicesToKeys, 0, dataLength);
+            Array.Copy(keys_, 0, newIndicesToKeys, 0, dataLength);
             data_ = newData;
-            indicesToKeys_ = newIndicesToKeys;
+            keys_ = newIndicesToKeys;
         }
 
         data_[currentIndex] = data;
-        indicesToKeys_[currentIndex] = key;
+        keys_[currentIndex] = key;
         Count++;
 
         return currentIndex;
     }
 
     /// <summary> Returns key of the element that replaced the removed one </summary>
-    protected (TKey replacingKey, int replacedIndex) RemoveByIndex(int indexToRemove)
+    protected (TKey replacingKey, int lastIndex) RemoveByIndex(int indexToRemove)
     {
         int lastIndex = Count - 1;
-        TKey lastKey = indicesToKeys_[lastIndex];
+        TKey lastKey = keys_[lastIndex];
 
         data_[indexToRemove] = data_[lastIndex]; //swap data for last
-        indicesToKeys_[indexToRemove] = lastKey; //update key stored in index
+        keys_[indexToRemove] = lastKey; //update key stored in index
         Count--;
 
         return (lastKey, lastIndex);
     }
 
+    protected virtual void UpdateEntryKey(int index, TKey key)
+    {
+        keys_[index] = key;
+    }
+    
     public abstract void UpdateKey(TKey oldKey, TKey newKey);
 
     public abstract string GetDebugString(bool detailed);
@@ -92,7 +97,7 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
     public (Dictionary<TKey, int> k2i, TKey[] i2k, TData[] data) __GetBuffers()
     {
-        return (keysToIndices_, indicesToKeys_, data_);
+        return (keysToIndices_, keys_, data_);
     }
 
     internal int GetIndexFromKey(TKey key)
@@ -110,21 +115,21 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         keysToIndices_.Add(key, AddEntry(key, data));
     }
 
-    protected internal (TKey replacingKey, int replacingIdx, int replacedIndex) RemoveKey(TKey key)
+    protected internal (TKey replacingKey, int lastIndex, int replacedIndex) RemoveKey(TKey key)
     {
-        var newIndex = GetIndexFromKey(key);
-        (TKey replacingKey, int replacedIndex) removed = RemoveByIndex(newIndex);
-        keysToIndices_[removed.replacingKey] = newIndex; //update index of last key
+        var keyIndex = GetIndexFromKey(key);
+        (TKey replacingKey, int lastIndex) removed = RemoveByIndex(keyIndex);
+        keysToIndices_[removed.replacingKey] = keyIndex; //update index of last key
         keysToIndices_.Remove(key);
-        return (removed.replacingKey, newIndex, removed.replacedIndex);
+        return (removed.replacingKey, removed.lastIndex, keyIndex);
     }
 
     public override void UpdateKey(TKey oldKey, TKey newKey)
     {
         var replacedKeyVal = keysToIndices_[oldKey];
-        indicesToKeys_[replacedKeyVal] = 
         keysToIndices_.Remove(oldKey);
         keysToIndices_.Add(newKey, replacedKeyVal);
+        UpdateEntryKey(replacedKeyVal, newKey);
     }
 
     public override string GetDebugString(bool detailed)
@@ -150,7 +155,7 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
 
     internal (int[] keysToIndices, int[] indicesToKeys, TData[] data_) __GetBuffers()
     {
-        return (keysToIndices_, indicesToKeys_, data_);
+        return (keysToIndices_, keys_, data_);
     }
 
     internal int GetIndexFromKey(int key)
@@ -188,4 +193,5 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
             $"  Entries: {Count}, Sparse Entries: {keysToIndices_.Length}\n" +
             $"  Map: {string.Join(", ", keysToIndices_.Where(x => x >= 0))}";
     }
+
 }
