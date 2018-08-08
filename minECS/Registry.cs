@@ -9,7 +9,7 @@ using EntUID = System.UInt64;
 using EntFlags = System.UInt64;
 using EntTags = System.UInt64;
 
-public struct EntityData
+public struct EntityData : IComparable<EntityData>
 {
     public EntFlags FlagsDense;
     public EntFlags FlagsSparse;
@@ -18,6 +18,11 @@ public struct EntityData
     public EntityData(EntTags tags) : this()
     {
         Tags = tags;
+    }
+
+    public int CompareTo(EntityData other)
+    {
+        return FlagsDense.CompareTo(other.FlagsDense);
     }
 }
 
@@ -135,6 +140,21 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
         //        foreach (var synced in syncedIndices_)
         //            synced.indicesMap[index] = -1;
+    }
+
+    public void SortEntities()
+    {
+        //create move map
+        EntIdx[] mm = new EntIdx[Count];
+        for (var i = 0; i < Count; i++)
+            mm[i] = i;
+
+        //sort the data and get the moves
+        Array.Sort(data_, mm, 0, Count);
+
+        componentsManager_.UpdateEntityIndices(mm, data_);
+
+        // ( ͡~ ͜ʖ ͡°)
     }
 
     public void RegisterComponent<T>(BufferType bufferType, int initialSize = 1 << 10) where T : struct
@@ -271,5 +291,4 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
             }
         }
     }
-    
 }

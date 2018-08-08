@@ -66,17 +66,28 @@ public class MinEcsTest : Game
         registry.RegisterComponent<Rect>(BufferType.Dense,1);
         registry.RegisterComponent<Name>(BufferType.Dense,1);
         registry.RegisterComponent<Health>(BufferType.Dense,1);
-
+        
         var r = new Random(42);
-        for (int i = 0; i < 32; i++)
+        for (int i = 0; i < 8; i++)
         {
             var e = registry.CreateEntity();
-            if(r.Next(10) < 8) registry.AddComponent(e, new Position());
-            if(r.Next(10) < 7) registry.AddComponent(e, new Velocity{vel = new Vector2(r.Next(-2, 2), r.Next(-2, 2)) });
-            if(r.Next(10) < 6) registry.AddComponent(e, new Health());
-            if(r.Next(10) < 5) registry.AddComponent(e, new Name());
-            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
+            if(r.Next(10) < 6) registry.AddComponent(e, new Position{pos = new Vector2(i,i)});
+            //if (r.Next(10) < 7) registry.AddComponent(e, new Velocity{vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
+//            if(r.Next(10) < 6) registry.AddComponent(e, new Health());
+//            if(r.Next(10) < 5) registry.AddComponent(e, new Name());
+//            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
+
+            //if(i%2==0)
+            //registry.DeleteEntity(e);
+
+            
         }
+
+        for (int i = 8 - 1; i >= 0; i--)
+        {
+//            registry.AddComponent((ulong)i, new Position());
+        }
+
 
 //        var e = registry.CreateEntity();
 //        registry.AddComponent(e, new Position());
@@ -320,10 +331,10 @@ public class MinEcsTest : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
-        {
-            pos.pos += vel.vel;
-        });
+//        registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
+//        {
+//            pos.pos += vel.vel;
+//        });
 
         gfx.Clear(Color.Black);
 
@@ -334,6 +345,13 @@ public class MinEcsTest : Game
         if (imbutton(new Vector2(10, 10), "Add Entity"))
         {
             registry.CreateEntity();
+        }
+
+        if (imbutton(new Vector2(110, 10), "Sort Entities"))
+        {
+            registry.SortEntities();
+            sb.End();
+            return;
         }
 
         DrawBuffer(new Vector2(10,100));

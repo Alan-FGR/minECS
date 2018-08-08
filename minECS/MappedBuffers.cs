@@ -12,8 +12,8 @@ using EntTags = System.UInt64;
 public abstract class MappedBufferBase<TKey, TData> : IDebugString
     where TKey : struct where TData : struct
 {
-    protected TData[] data_;
-    protected TKey[] keys_; //same indices as data_
+    protected internal TData[] data_;
+    protected internal TKey[] keys_; //same indices as data_
     public int Count { get; private set; }
     //public event Action<int> OnBufferSizeChanged;
 
@@ -72,12 +72,23 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
         return (lastKey, lastIndex);
     }
 
+    public void Swap(int indexA, int indexB)
+    {
+        var tmpData = data_[indexB];
+        data_[indexB] = data_[indexA];
+        data_[indexA] = tmpData;
+
+        var tmpKey = keys_[indexB];
+        keys_[indexB] = keys_[indexA];
+        keys_[indexA] = tmpKey;
+    }
+    
     protected virtual void UpdateEntryKey(int index, TKey key)
     {
         keys_[index] = key;
     }
     
-    public abstract void UpdateKey(TKey oldKey, TKey newKey);
+    public abstract void UpdateKeyForEntry(TKey oldKey, TKey newKey);
 
     public abstract string GetDebugString(bool detailed);
 }
@@ -85,7 +96,7 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
 public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
     where TKey : struct where TData : struct
 {
-    private readonly Dictionary<TKey, int> keysToIndices_;
+    internal readonly Dictionary<TKey, int> keysToIndices_;
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
@@ -114,7 +125,7 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
     {
         keysToIndices_.Add(key, AddEntry(key, data));
     }
-
+    
     protected internal (TKey replacingKey, int lastIndex, int replacedIndex) RemoveKey(TKey key)
     {
         var keyIndex = GetIndexFromKey(key);
@@ -124,12 +135,12 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         return (removed.replacingKey, removed.lastIndex, keyIndex);
     }
 
-    public override void UpdateKey(TKey oldKey, TKey newKey)
+    public override void UpdateKeyForEntry(TKey oldKey, TKey newKey)
     {
-        var replacedKeyVal = keysToIndices_[oldKey];
+        var replacedKeyValue = keysToIndices_[oldKey];
         keysToIndices_.Remove(oldKey);
-        keysToIndices_.Add(newKey, replacedKeyVal);
-        UpdateEntryKey(replacedKeyVal, newKey);
+        keysToIndices_.Add(newKey, replacedKeyValue);
+        UpdateEntryKey(replacedKeyValue, newKey);
     }
 
     public override string GetDebugString(bool detailed)
@@ -182,7 +193,7 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         //keysToIndices_[replacedKey] = newIndex; //update index of last key
     }
 
-    public override void UpdateKey(int oldKey, int newKey)
+    public override void UpdateKeyForEntry(int oldKey, int newKey)
     {
         throw new NotImplementedException();
     }

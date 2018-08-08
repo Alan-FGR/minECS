@@ -17,7 +17,7 @@ public enum BufferType
     Dense,
 }
 
-internal partial class ComponentBuffersManager : IDebugString
+internal class ComponentBuffersManager : IDebugString
 {
     public int DenseCount { get; private set; } = 0;
     private readonly ComponentBufferBase[] denseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
@@ -89,6 +89,14 @@ internal partial class ComponentBuffersManager : IDebugString
         }
     }
 
+    public void UpdateEntityIndices(int[] mm, EntityData[] entData)
+    {
+        foreach (var buffer in denseBuffers_)
+        {
+            buffer?.UpdateEntitiesIndices(mm, entData);
+        }
+    }
+
     public string GetDebugString(bool detailed = false)
     {
         string s = "Registered Component Buffers:\n";
@@ -102,7 +110,4 @@ internal partial class ComponentBuffersManager : IDebugString
 
         return s;
     }
-
-
-
 }

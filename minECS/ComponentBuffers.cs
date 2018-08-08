@@ -10,7 +10,7 @@ using EntUID = System.UInt64;
 using EntFlags = System.UInt64;
 using EntTags = System.UInt64;
 
-public class ComponentMatcher
+public struct ComponentMatcher
 {
     public EntFlags Flag { get; }
 
@@ -55,6 +55,8 @@ public abstract class ComponentBufferBase : IDebugString
 
     public abstract void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags);
     public abstract void UpdateEntIdx(int oldIdx, int newIdx);
+
+    public abstract void UpdateEntitiesIndices(EntIdx[] moveMap, EntityData[] sortedData);
 
     public bool HasComponent(ref EntityData entityData)
     {
@@ -105,7 +107,56 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
 
     public override void UpdateEntIdx(EntIdx oldIdx, EntIdx newIdx)
     {
-        buffer_.UpdateKey(oldIdx, newIdx);
+        buffer_.UpdateKeyForEntry(oldIdx, newIdx);
+    }
+
+    public override void UpdateEntitiesIndices(EntIdx[] moveMap, EntityData[] sortedData)
+    {
+        EntIdx[] newKeys = new EntIdx[ComponentCount];
+        int[] newInds = new int[ComponentCount];
+
+        int c = 0;
+        for (int i = 0; i < moveMap.Length; i++)
+        {
+            EntIdx oldEntIdx = moveMap[i];
+            EntIdx newEntIdx = i;
+
+            if (Matcher.Matches(sortedData[newEntIdx].FlagsDense))
+            {
+                var existingIndex = buffer_.GetIndexFromKey(oldEntIdx);
+                newKeys[c] = newEntIdx;
+                newInds[c] = existingIndex;
+                c++;
+            }
+        }
+        
+        SetK2i(newKeys, newInds);
+    }
+
+    public void SetK2i(EntIdx[] keys, int[] ints)
+    {
+        buffer_.keysToIndices_.Clear();
+
+        T[] sortedData = new T[buffer_.data_.Length];
+
+        //int[] 
+
+        for (var i = 0; i < keys.Length; i++)
+        {
+
+        }
+
+        for (var i = 0; i < keys.Length; i++)
+        {
+            buffer_.keysToIndices_.Add(keys[i], ints[i]);
+
+            var compkey = buffer_.keys_[0];
+            sortedData[i] = buffer_.data_[compkey];
+
+            buffer_.keys_[ints[i]] = keys[i];
+        }
+
+        buffer_.data_ = sortedData;
     }
 
     public override string GetDebugString(bool detailed)
@@ -168,6 +219,12 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public override void UpdateEntIdx(int oldIdx, int newIdx)
     {
+        throw new NotImplementedException();
+    }
+
+    public override void UpdateEntitiesIndices(EntIdx[] moveMap, EntityData[] sortedData)
+    {
+
         throw new NotImplementedException();
     }
 
