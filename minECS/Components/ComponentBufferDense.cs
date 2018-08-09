@@ -42,32 +42,46 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
 
     public override void UpdateEntitiesIndices(EntIdx[] moveMap, EntityData[] sortedData)
     {
-        EntIdx[] newKeys = new EntIdx[ComponentCount];
-        int[] newInds = new int[ComponentCount];
+        //movemap contains the EntIdx deltas
+
+        EntIdx[] newCompsKeys = new EntIdx[ComponentCount];
+        int[] newCompsInds = new int[ComponentCount];
+
+        T[] newCompsData = new T[buffer_.data_.Length];
+
+        List<int[]> debuarrs = new List<int[]>();
 
         int c = 0;
         for (int i = 0; i < moveMap.Length; i++)
         {
-            EntIdx oldEntIdx = moveMap[i];
-            EntIdx newEntIdx = i;
+            EntIdx entIdxInOldArr = moveMap[i];
+            EntIdx entIdxInNewArr = i;
 
-            if (Matcher.Matches(sortedData[newEntIdx].FlagsDense))
+            if (Matcher.Matches(sortedData[entIdxInNewArr].FlagsDense))
             {
-                var existingIndex = buffer_.GetIndexFromKey(oldEntIdx);
-                newKeys[c] = newEntIdx;
-                newInds[c] = existingIndex;
+                var componentIndex = buffer_.GetIndexFromKey(entIdxInOldArr);
+                var newKeyForCompIndex = entIdxInNewArr;
+                
+                debuarrs.Add(new []{i,moveMap[i]});
+
+                newCompsKeys[c] = entIdxInNewArr;
+                newCompsInds[c] = componentIndex;
+                newCompsData[componentIndex] = buffer_.data_[c];
+
                 c++;
             }
         }
-        
-        SetK2i(newKeys, newInds);
+
+        buffer_.data_ = newCompsData;
+
+        SetK2i(newCompsKeys, newCompsInds);
     }
 
     public void SetK2i(EntIdx[] keys, int[] ints)
     {
         buffer_.keysToIndices_.Clear();
 
-        T[] sortedData = new T[buffer_.data_.Length];
+//        T[] sortedData = new T[buffer_.data_.Length];
 
         //int[] 
 
@@ -80,13 +94,13 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
         {
             buffer_.keysToIndices_.Add(keys[i], ints[i]);
 
-            var compkey = buffer_.keys_[0];
-            sortedData[i] = buffer_.data_[compkey];
+            //var compkey = buffer_.keys_[0];
+            //sortedData[i] = buffer_.data_[compkey];
 
             buffer_.keys_[ints[i]] = keys[i];
         }
 
-        buffer_.data_ = sortedData;
+        //buffer_.data_ = sortedData;
     }
 
     #region Debug
