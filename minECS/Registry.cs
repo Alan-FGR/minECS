@@ -152,7 +152,21 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         //sort the data and get the moves
         Array.Sort(data_, mm, 0, Count);
 
+        var newKeys = new EntUID[Count];
+
+        for (var i = 0; i < mm.Length; i++)
+        {
+            newKeys[i] = keys_[mm[i]];
+            keysToIndices_[keys_[mm[i]]] = i;
+        }
+
+
+        //todo cache sorting array
+        
         componentsManager_.UpdateEntityIndices(mm, data_);
+
+
+        keys_ = newKeys;
 
         // ( ͡~ ͜ʖ ͡°)
     }
