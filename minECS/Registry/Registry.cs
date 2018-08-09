@@ -26,88 +26,6 @@ public struct EntityData : IComparable<EntityData>
     }
 }
 
-/*
-public class View<T1, T2> : ViewBase
-    where T1 : struct where T2 : struct
-{
-    private ComponentBuffer<T1> master_;
-
-    private ComponentBuffer<T2> t2_;
-    private int[] t2SyncedIndices_;
-    // the int[] above contains the index of components in their respective buffers (the values stored there);
-    // int[] is aligned to the entries in the master_ buffer (same index).
-    
-    internal override void SyncBuffersAdded(IComponentMatcher buffer, EntIdx entIdx)
-    {
-        if (!buffer.Matches(syncedBuffersFlags)) return;
-        
-        if (buffer.Matches(t2_.Flag)) //if t2 is the buffer we're looking for
-        {
-            int compIdxInMaster = master_.GetIndexFromKey(entIdx);
-            int entIdxInT2 = t2_.GetIndexFromKey(entIdx);
-            t2SyncedIndices_[compIdxInMaster] = entIdxInT2;
-            return;
-        }
-    }
-
-    internal override void SyncBuffersRemoved(IComponentMatcher buffer, (EntIdx removedKey, EntIdx lastKey, int lastIndex) remData)
-    {
-        if (!buffer.Matches(syncedBuffersFlags)) return;
-
-        if (buffer.Matches(t2_.Flag))
-        {
-            int compIdxInMaster = master_.GetIndexFromKey(remData.removedKey);
-            int entIdxInT2 = t2_.GetIndexFromKey(remData.removedKey);
-
-            var movedIdxInMaster = master_.TryGetIndexFromKey(remData.lastKey);
-
-                if (movedIndexInThisBuffer >= 0) //todo review
-                {
-                    if (indexInThisBuffer >= 0)
-                        syncedIndices_.Find(bufferToSync).indicesMap[movedIndexInThisBuffer] = indexMovedThere;
-                }
-                else if (indexInThisBuffer >= 0)
-                    syncedIndices_.Find(bufferToSync).indicesMap[indexInThisBuffer] = -1; //todo rev
-            };
-
-            return;
-        //}
-    }
-
-    public delegate void Process(int entIdx, ref T1 component1, ref T2 component2);
-    public void Loop(Process loopAction)
-    {
-        var componentBuffer = master_;
-        var buffers = componentBuffer.__GetBuffers();
-        var entIdxs = buffers.keys;
-        var components = buffers.data;
-
-        var matcher2 = t2_;
-        var matcher2Buffers = matcher2.__GetBuffers();
-        var matcher2SyncedIndices = t2SyncedIndices_;
-
-        for (var i = components.Length - 1; i >= 0; i--)
-        {
-            ref T1 component = ref components[i];
-            int entIdx = entIdxs[i];
-            var matcher2SyncedIndex = matcher2SyncedIndices[i];
-            if (matcher2SyncedIndex >= 0)
-            {
-                ref T2 component2 = ref matcher2Buffers.data[matcher2SyncedIndex];
-                loopAction(entIdx, ref component, ref component2);
-            }//end if indexInMatcher2
-        }//end for components
-    }
-}
-
-internal class ViewsManager
-{
-    private List<ViewBase> views_ = new List<ViewBase>();
-
-
-}
-*/
-
 public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 {
     private EntUID currentUID_ = 0;
@@ -131,11 +49,11 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         ref EntityData entData = ref GetDataFromIndex(entIdx);
         componentsManager_.RemoveAllComponents(entIdx, ref entData);
 
-        var replaced = RemoveKey(entUID); //todo rev rets
+        var lastIndex = RemoveKey(entUID); //todo rev rets
 
         ref EntityData replacingData = ref GetDataFromIndex(entIdx);
 
-        componentsManager_.UpdateEntityIndex(ref replacingData, replaced.lastIndex, entIdx);
+        componentsManager_.UpdateEntityIndex(ref replacingData, lastIndex, entIdx);
 
         //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
         //        foreach (var synced in syncedIndices_)

@@ -206,7 +206,7 @@ public class MinEcsTest : Game
             foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())
             {
 
-                var hascomp = buffer.HasComponent(ref val);
+                var hascomp = buffer.HasComponentSlow(ref val);
 
                 string compNameStr = buffer.GetType().GenericTypeArguments[0].Name;
                 var comptype = Type.GetType(compNameStr, false, true);
