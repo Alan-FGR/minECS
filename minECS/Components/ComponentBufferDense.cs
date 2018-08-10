@@ -47,6 +47,8 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
         EntIdx[] newCompsKeys = new EntIdx[ComponentCount];
         int[] newCompsInds = new int[ComponentCount];
 
+        var oldCompKeys = buffer_.keys_;
+
         T[] newCompsData = new T[buffer_.data_.Length];
 
         List<int[]> debuarrs = new List<int[]>();
@@ -59,20 +61,22 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
 
             if (Matcher.Matches(sortedData[entIdxInNewArr].FlagsDense))
             {
+                var oldCompIdx = oldCompKeys[c];
+
                 var componentIndex = buffer_.GetIndexFromKey(entIdxInOldArr);
                 var newKeyForCompIndex = entIdxInNewArr;
-                
-                debuarrs.Add(new []{i,moveMap[i]});
 
-                newCompsKeys[c] = entIdxInNewArr;
+                debuarrs.Add(new[] { i, moveMap[i] });
+
+                newCompsKeys[c] = newKeyForCompIndex;
                 newCompsInds[c] = componentIndex;
-                newCompsData[componentIndex] = buffer_.data_[c];
+                newCompsData[c] = buffer_.data_[oldCompIdx];
 
                 c++;
             }
         }
 
-        buffer_.data_ = newCompsData;
+        //buffer_.data_ = newCompsData;
 
         SetK2i(newCompsKeys, newCompsInds);
     }

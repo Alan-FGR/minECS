@@ -226,7 +226,7 @@ public class MinEcsTest : Game
             
         }
         
-        var keysRenderPos = RenderKeys(keysPos, buffers.i2k, registry.Count, hspc, Color.Red);
+        var keysRenderPos = RenderKeys(keysPos, buffers.i2k, "UIDs", registry.Count, hspc, Color.Red);
         RenderDenseMap(k2iPos, buffers.k2i, hspc, keysRenderPos);
 
         var sp = k2iPos + Vector2.UnitY * 64;
@@ -247,7 +247,7 @@ public class MinEcsTest : Game
             DrawString(sp + Vector2.UnitY * 6, $"flag: {mask2str(buffer.Matcher.Flag)} {bt[0]}", buffer.Sparse ? Color.LightSeaGreen : Color.Gold);
 
             var bd = buffer.GetDebugFlagAndEntIdxs();
-            var keysps = RenderKeys(sp + Vector2.UnitY * 16, bd.endIdxs, buffer.ComponentCount, hspc, cols[c], keysPos);
+            var keysps = RenderKeys(sp + Vector2.UnitY * 16, bd.endIdxs, "enti", buffer.ComponentCount, hspc, cols[c], keysPos);
 
             if (!buffer.Sparse)
             {
@@ -293,11 +293,11 @@ public class MinEcsTest : Game
         }
     }
 
-    private Dictionary<T, Vector2> RenderKeys<T>(Vector2 keysPos, T[] keys, int usedCount, int hspc, Color linecol, Vector2? entKeysPos = null)
+    private Dictionary<T, Vector2> RenderKeys<T>(Vector2 keysPos, T[] keys, string keysname, int usedCount, int hspc, Color linecol, Vector2? entKeysPos = null)
     {
         Dictionary<T, Vector2> keysRenderPos = new Dictionary<T, Vector2>();
 
-        DrawString(keysPos, "keys:", Color.White);
+        DrawString(keysPos, $"{keysname}:", Color.White);
         for (var i = 0; i < usedCount; i++)
         {
             T val = keys[i];
@@ -311,12 +311,12 @@ public class MinEcsTest : Game
             }
         }
 
-        DrawString(keysPos + Vector2.UnitY * 8, "raw:", Color.Gray);
+        DrawString(keysPos + Vector2.UnitY * 8, "raw:", Color.DimGray);
         for (var i = 0; i < keys.Length; i++)
         {
             T val = keys[i];
             Vector2 pos = ind2pos(keysPos + Vector2.UnitY * 8 + Vector2.UnitX * hspc, i);
-            DrawString(pos, val.ToString(), Color.DarkMagenta);
+            DrawString(pos, val.ToString(), new Color(Color.DarkMagenta, 0.5f));
         }
 
         DrawString(keysPos + Vector2.UnitY * 16, "idx:", Color.DarkGray);
@@ -350,8 +350,6 @@ public class MinEcsTest : Game
         if (imbutton(new Vector2(110, 10), "Sort Entities"))
         {
             registry.SortEntities();
-            sb.End();
-            return;
         }
 
         DrawBuffer(new Vector2(10,100));
