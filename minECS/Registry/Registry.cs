@@ -22,7 +22,7 @@ public struct EntityData : IComparable<EntityData>
 
     public int CompareTo(EntityData other)
     {
-        return FlagsDense.CompareTo(other.FlagsDense);
+        return BitUtils.BitCount(FlagsDense).CompareTo(BitUtils.BitCount(other.FlagsDense));//TODO this is so wrong! need to get diff with XOR!
     }
 }
 
