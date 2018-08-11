@@ -63,7 +63,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
     public void SortEntities()
     {
         //create move map
-        EntIdx[] mm = new EntIdx[Count];
+        int[] mm = new int[Count];
         for (var i = 0; i < Count; i++)
             mm[i] = i;
 
@@ -77,9 +77,8 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
             newKeys[i] = keys_[mm[i]];
             keysToIndices_[keys_[mm[i]]] = i;
         }
-
-
-        //todo cache sorting array
+        
+        //todo cache sorting array (GC-less)
         
         componentsManager_.UpdateEntityIndices(mm, data_);
 
@@ -115,6 +114,11 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 //        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
 //        entData.Flags = 0;
 //    }
+
+    public void SortComponents<T>() where T : struct
+    {
+        componentsManager_.GetBufferSlow<T>().SortComponents();
+    }
 
     #region Debug
 

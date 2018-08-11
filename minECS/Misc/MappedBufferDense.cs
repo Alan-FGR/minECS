@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
     where TKey : struct where TData : struct
 {
-    internal readonly Dictionary<TKey, int> keysToIndices_;
+    protected Dictionary<TKey, int> keysToIndices_;
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
@@ -17,6 +18,16 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
     public (Dictionary<TKey, int> k2i, TKey[] i2k, TData[] data) __GetBuffers()
     {
         return (keysToIndices_, keys_, data_);
+    }
+
+    public void SetK2i(TKey[] keys, int[] ints)
+    {
+        keysToIndices_.Clear();
+        for (var i = 0; i < keys.Length; i++)
+        {
+            keysToIndices_.Add(keys[i], ints[i]);
+            keys_[ints[i]] = keys[i];
+        }
     }
 
     internal int GetIndexFromKey(TKey key)
@@ -56,5 +67,28 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         return
         $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
         $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
+    }
+
+    public void SortDataByKey()
+    {
+        //create move map
+        int[] mm = new int[Count];
+        for (var i = 0; i < Count; i++)
+            mm[i] = i;
+
+        //sort the keys and get the moves
+        Array.Sort(keys_, mm, 0, Count);
+
+        var newData = new TData[Count];
+
+        for (var i = 0; i < mm.Length; i++)
+        {
+            var oldIndex = mm[i];
+            newData[i] = data_[oldIndex];
+            keysToIndices_[keys_[i]] = i;
+        }
+
+        //todo cache sorting array (GC-less)
+        data_ = newData;
     }
 }

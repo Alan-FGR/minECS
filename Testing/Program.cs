@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
@@ -68,24 +69,23 @@ public class MinEcsTest : Game
         registry.RegisterComponent<Health>(BufferType.Dense,1);
         
         var r = new Random(42);
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 32; i++)
         {
             var e = registry.CreateEntity();
-            if(r.Next(10) < 6) registry.AddComponent(e, new Position{pos = new Vector2(i,i)});
-            //if (r.Next(10) < 7) registry.AddComponent(e, new Velocity{vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
-//            if(r.Next(10) < 6) registry.AddComponent(e, new Health());
-//            if(r.Next(10) < 5) registry.AddComponent(e, new Name());
-//            if(r.Next(10) < 4) registry.AddComponent(e, new Rect());
-
             //if(i%2==0)
             //registry.DeleteEntity(e);
-
-            
         }
-
-        for (int i = 8 - 1; i >= 0; i--)
+        
+        int[] shuffA = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
+        int[] shuffB = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
+        int[] shuffC = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
+        for (int i = 0; i < 32; i++)
         {
-//            registry.AddComponent((ulong)i, new Position());
+            if (r.Next(10) < 9) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(i, i) });
+            if (r.Next(10) < 8) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
+            if(r.Next(10) < 8) registry.AddComponent((ulong)shuffB[i], new Rect());
+            if(r.Next(10) < 7) registry.AddComponent((ulong)shuffA[i], new Name());
+            if(r.Next(10) < 7) registry.AddComponent((ulong)shuffC[i], new Health());
         }
 
 
@@ -350,6 +350,18 @@ public class MinEcsTest : Game
         if (imbutton(new Vector2(110, 10), "Sort Entities"))
         {
             registry.SortEntities();
+        }
+
+        var c = 0;
+        foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())
+        {
+            string compNameStr = buffer.GetType().GenericTypeArguments[0].Name;
+            var comptype = Type.GetType(compNameStr, false, true);
+
+            if (imbutton(new Vector2(250 + c++ * 100, 10), $"Sort {compNameStr}"))
+            {
+                registry.GetType().GetMethod("SortComponents").MakeGenericMethod(comptype).Invoke(registry, new object[0]);
+            }
         }
 
         DrawBuffer(new Vector2(10,100));

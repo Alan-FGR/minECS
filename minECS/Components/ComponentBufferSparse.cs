@@ -30,6 +30,11 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
         dataToSetFlags.FlagsDense |= Matcher.Flag;
     }
 
+    public override void SortComponents()
+    {
+        throw new NotImplementedException();
+    }
+
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
         buffer_.RemoveKey(entIdx);

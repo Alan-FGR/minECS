@@ -47,4 +47,5 @@ public abstract class ComponentBufferBase : IDebugString
 public abstract class TypedComponentBufferBase<T> : ComponentBufferBase
 {
     public abstract void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags);
+    public abstract void SortComponents();
 }
