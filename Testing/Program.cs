@@ -81,7 +81,7 @@ public class MinEcsTest : Game
         int[] shuffC = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
         for (int i = 0; i < 32; i++)
         {
-            if (r.Next(10) < 9) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(i, i) });
+            if (r.Next(10) < 9) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(shuffA[i], shuffA[i]) });
             if (r.Next(10) < 8) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
             if(r.Next(10) < 8) registry.AddComponent((ulong)shuffB[i], new Rect());
             if(r.Next(10) < 7) registry.AddComponent((ulong)shuffA[i], new Name());
