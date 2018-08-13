@@ -22,7 +22,12 @@ public struct EntityData : IComparable<EntityData>
 
     public int CompareTo(EntityData other)
     {
-        return BitUtils.BitCount(FlagsDense).CompareTo(BitUtils.BitCount(other.FlagsDense));//TODO this is so wrong!
+        // if (FlagsDense == other.FlagsDense) return 0;
+        // var diff = BitUtils.BitCount(FlagsDense ^ other.FlagsDense);
+        // var equal = BitUtils.BitCount(FlagsDense & other.FlagsDense);
+        // if (diff > equal) return 1;
+        // return -1;
+        return FlagsDense.CompareTo(other.FlagsDense);//TODO figure something clever!
     }
 }
 
@@ -107,13 +112,13 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         componentsManager_.RemoveComponent<T>(entIdx, ref entData);
     }
 
-//    public void RemoveAllComponents(EntUID entUID)
-//    {
-//        EntIdx entIdx = GetIndexFromKey(entUID);
-//        ref EntityData entData = ref GetDataFromIndex(entIdx);
-//        componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
-//        entData.Flags = 0;
-//    }
+    // public void RemoveAllComponents(EntUID entUID)
+    // {
+    //     EntIdx entIdx = GetIndexFromKey(entUID);
+    //     ref EntityData entData = ref GetDataFromIndex(entIdx);
+    //     componentsManager_.RemoveAllComponents(entIdx, entData.Flags);
+    //     entData.Flags = 0;
+    // }
 
     public void SortComponents<T>() where T : struct
     {
