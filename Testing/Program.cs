@@ -254,6 +254,11 @@ public class MinEcsTest : Game
                 GetType().GetMethod("RenderCompBufDense").MakeGenericMethod(comptype)
                     .Invoke(this, new object[] { sp + Vector2.UnitY * 48, buffer, keysps});
             }
+            else
+            {
+                GetType().GetMethod("RenderCompBufSparse").MakeGenericMethod(comptype)
+                    .Invoke(this, new object[] { sp + Vector2.UnitY * 48, buffer, keysps});
+            }
 
             sp += Vector2.UnitY*96;
             c++;
@@ -282,12 +287,11 @@ public class MinEcsTest : Game
         var buffers = b.__GetBuffers();
 
         DrawString(pos, "k2iS:", Color.White);
-        int c = 0;
 
-        for (var i = 0; i < buffers.i2EntIdx.Length; i++)
+        for (var i = 0; i < b.ComponentCount; i++)
         {
             int entIdx = buffers.i2EntIdx[i];
-            Vector2 posw = ind2pos(pos + Vector2.UnitX * 28, c++);
+            Vector2 posw = ind2pos(pos + Vector2.UnitX * 28, i);
             DrawString(posw, entIdx + ":" + i, Color.Lime);
 
             try

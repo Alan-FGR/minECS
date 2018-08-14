@@ -16,6 +16,7 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
         buffer_ = new MappedBufferDense<EntIdx, T>();
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
+        Sparse = false;
     }
 
     public (Dictionary<EntIdx, int> entIdx2i, int[] i2EntIdx, T[] data) __GetBuffers()

@@ -27,7 +27,7 @@ public struct EntityData : IComparable<EntityData>
         // var equal = BitUtils.BitCount(FlagsDense & other.FlagsDense);
         // if (diff > equal) return 1;
         // return -1;
-        return FlagsDense.CompareTo(other.FlagsDense);//TODO figure something clever!
+        return FlagsSparse.CompareTo(other.FlagsSparse);//TODO figure something clever!
     }
 }
 

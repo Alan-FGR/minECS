@@ -16,6 +16,7 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
         buffer_ = new MappedBufferSparse<T>(entitiesBuffer);
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
+        Sparse = true;
     }
 
     public (int[] entIdx2i, int[] i2EntIdx, T[] data) __GetBuffers()
@@ -26,7 +27,7 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
     public override void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags)
     {
         buffer_.AddKey(entIdx, component);
-        dataToSetFlags.FlagsDense |= Matcher.Flag;
+        dataToSetFlags.FlagsSparse |= Matcher.Flag;
     }
 
     public override void SortComponents()
@@ -37,7 +38,7 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
         buffer_.RemoveKey(entIdx);
-        dataToSetFlags.FlagsDense ^= Matcher.Flag;
+        dataToSetFlags.FlagsSparse ^= Matcher.Flag;
     }
 
     public override void UpdateEntIdx(int oldIdx, int newIdx)

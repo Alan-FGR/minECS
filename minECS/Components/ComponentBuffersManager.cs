@@ -47,7 +47,7 @@ internal class ComponentBuffersManager : IDebugString
     {
         for (var i = 0; i < SparseCount; i++)
         {
-            ComponentBufferBase buffer = denseBuffers_[i];
+            ComponentBufferBase buffer = sparseBuffers_[i];
             if (buffer.Matcher.Matches(flags))
                 yield return buffer;
         }
