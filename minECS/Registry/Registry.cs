@@ -86,8 +86,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         //todo cache sorting array (GC-less)
         
         componentsManager_.UpdateEntityIndices(mm, data_);
-
-
+        
         keys_ = newKeys;
 
         // ( ͡~ ͜ʖ ͡°)
@@ -95,7 +94,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
     public void RegisterComponent<T>(BufferType bufferType, int initialSize = 1 << 10) where T : struct
     {
-        componentsManager_.CreateComponentBuffer<T>(initialSize, bufferType);
+        componentsManager_.CreateComponentBuffer<T>(initialSize, bufferType, this);
     }
 
     public void AddComponent<T>(EntUID entUID, T component = default) where T : struct

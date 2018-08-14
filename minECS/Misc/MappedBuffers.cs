@@ -8,13 +8,21 @@ using EntUID = System.UInt64; // ain't no C++ :(
 using EntFlags = System.UInt64; // component flags
 using EntTags = System.UInt64;
 
-public abstract class MappedBufferBase<TKey, TData> : IDebugString
+public interface IMappedBuffer
+{
+    event Action<int> OnBufferSizeChanged;
+    int AllocElementsCount { get; }
+}
+
+public abstract class MappedBufferBase<TKey, TData> : IDebugString, IMappedBuffer
     where TKey : struct where TData : struct
 {
     protected internal TData[] data_;
     protected internal TKey[] keys_; //same indices as data_
+
+    public event Action<int> OnBufferSizeChanged;
+    public int AllocElementsCount => data_.Length;
     public int Count { get; private set; }
-    //public event Action<int> OnBufferSizeChanged;
 
     protected MappedBufferBase(int initialSize)
     {
@@ -49,6 +57,8 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString
             Array.Copy(keys_, 0, newIndicesToKeys, 0, dataLength);
             data_ = newData;
             keys_ = newIndicesToKeys;
+
+            OnBufferSizeChanged?.Invoke(newSize);
         }
 
         data_[currentIndex] = data;

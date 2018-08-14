@@ -4,22 +4,21 @@ using System.Collections.Generic;
 using EntIdx = System.Int32;
 using EntFlags = System.UInt64;
 
-class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
+public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
     where T : struct
 {
-    private MappedBufferDense<EntIdx, T> buffer_;
+    private MappedBufferSparse<T> buffer_;
 
     public override int ComponentCount => buffer_.Count;
 
-    public ComponentBufferSparse(int bufferIndex, int initialSize = 1 << 10)
+    public ComponentBufferSparse(int bufferIndex, IMappedBuffer entitiesBuffer, int initialSize = 1 << 10)
     {
-        buffer_ = new MappedBufferDense<EntIdx, T>();
+        buffer_ = new MappedBufferSparse<T>(entitiesBuffer);
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
-        throw new NotImplementedException();
     }
 
-    public (Dictionary<EntIdx, int> entIdx2i, int[] i2EntIdx, T[] data) __GetBuffers()
+    public (int[] entIdx2i, int[] i2EntIdx, T[] data) __GetBuffers()
     {
         return buffer_.__GetBuffers();
     }
@@ -32,7 +31,7 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public override void SortComponents()
     {
-        throw new NotImplementedException();
+        buffer_.SortDataByKey();
     }
 
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
@@ -43,13 +42,34 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public override void UpdateEntIdx(int oldIdx, int newIdx)
     {
-        throw new NotImplementedException();
+        buffer_.UpdateKeyForEntry(oldIdx, newIdx);
     }
 
     public override void UpdateEntitiesIndices(EntIdx[] moveMap, EntityData[] sortedData)
     {
+        //movemap contains the EntIdx deltas
+        EntIdx[] newCompsKeys = new EntIdx[ComponentCount];
+        int[] newCompsInds = new int[ComponentCount];
 
-        throw new NotImplementedException();
+        int c = 0;
+        for (int i = 0; i < moveMap.Length; i++)
+        {
+            EntIdx entIdxInOldArr = moveMap[i];
+            EntIdx entIdxInNewArr = i;
+
+            if (Matcher.Matches(sortedData[entIdxInNewArr].FlagsDense))
+            {
+                var componentIndex = buffer_.GetIndexFromKey(entIdxInOldArr);
+                var newKeyForCompIndex = entIdxInNewArr;
+
+                newCompsKeys[c] = newKeyForCompIndex;
+                newCompsInds[c] = componentIndex;
+
+                c++;
+            }
+        }
+
+        buffer_.SetK2i(newCompsKeys, newCompsInds);
     }
 
     public override string GetDebugString(bool detailed)
@@ -61,6 +81,6 @@ class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public override (ulong flag, int[] endIdxs) GetDebugFlagAndEntIdxs()
     {
-        throw new NotImplementedException();
+        return (Matcher.Flag, buffer_.__GetBuffers().indicesToKeys);
     }
 }

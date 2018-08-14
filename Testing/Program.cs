@@ -62,12 +62,12 @@ public class MinEcsTest : Game
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
 
-        registry.RegisterComponent<Position>(BufferType.Dense,1);
-        registry.RegisterComponent<Velocity>(BufferType.Dense,1);
-        registry.RegisterComponent<Rect>(BufferType.Dense,1);
-        registry.RegisterComponent<Name>(BufferType.Dense,1);
-        registry.RegisterComponent<Health>(BufferType.Dense,1);
-        
+        registry.RegisterComponent<Position>(BufferType.Sparse,1);
+        // registry.RegisterComponent<Velocity>(BufferType.Dense,1);
+        // registry.RegisterComponent<Rect>(BufferType.Dense,1);
+        // registry.RegisterComponent<Name>(BufferType.Dense,1);
+        // registry.RegisterComponent<Health>(BufferType.Dense,1);
+        return;
         var r = new Random(42);
         for (int i = 0; i < 32; i++)
         {
@@ -276,9 +276,41 @@ public class MinEcsTest : Game
         }
     }
 
+    public void RenderCompBufSparse<T>(Vector2 pos, ComponentBufferBase buf, Dictionary<int, Vector2> keysRenderPos) where T : struct
+    {
+        var b = (ComponentBufferSparse<T>) buf;
+        var buffers = b.__GetBuffers();
+
+        DrawString(pos, "k2iS:", Color.White);
+        int c = 0;
+
+        for (var i = 0; i < buffers.i2EntIdx.Length; i++)
+        {
+            int entIdx = buffers.i2EntIdx[i];
+            Vector2 posw = ind2pos(pos + Vector2.UnitX * 28, c++);
+            DrawString(posw, entIdx + ":" + i, Color.Lime);
+
+            try
+            {
+                DrawLine(keysRenderPos[entIdx] + Vector2.One * 10, posw + Vector2.One * 10,
+                    new Color(Color.Cyan, 0.5f));
+            }
+            catch
+            {
+            }
+        }
+
+        for (var i = 0; i < buffers.data.Length; i++)
+        {
+            T comp = buffers.data[i];
+            Vector2 dpos = ind2pos(pos + Vector2.UnitY * 8 + Vector2.UnitX * 28, i);
+            DrawString(dpos, comp.ToString(), Color.DarkSlateGray);
+        }
+    }
+
     private void RenderDenseMap<T>(Vector2 k2iPos, Dictionary<T, int> map, int hspc, Dictionary<T, Vector2> keysRenderPos)
     {
-        DrawString(k2iPos, "k2i:", Color.White);
+        DrawString(k2iPos, "k2iD:", Color.Cyan);
         int c = 0;
         foreach (KeyValuePair<T, int> pair in map)
         {
@@ -331,10 +363,10 @@ public class MinEcsTest : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
-        {
-            pos.pos += vel.vel;
-        });
+        // registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
+        // {
+        //     pos.pos += vel.vel;
+        // });
 
         gfx.Clear(Color.Black);
 

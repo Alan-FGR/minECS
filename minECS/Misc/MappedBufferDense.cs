@@ -40,12 +40,12 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         return ref data_[keysToIndices_[key]];
     }
 
-    protected internal void AddKey(TKey key, in TData data)
+    internal void AddKey(TKey key, in TData data)
     {
         keysToIndices_.Add(key, AddEntry(key, data));
     }
     
-    protected internal int RemoveKey(TKey key)
+    internal int RemoveKey(TKey key)
     {
         var keyIndex = GetIndexFromKey(key);
         (TKey replacingKey, int lastIndex) removed = RemoveByIndex(keyIndex);
@@ -60,13 +60,6 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         keysToIndices_.Remove(oldKey);
         keysToIndices_.Add(newKey, replacedKeyValue);
         UpdateEntryKey(replacedKeyValue, newKey);
-    }
-
-    public override string GetDebugString(bool detailed)
-    {
-        return
-        $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
-        $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
     }
 
     public void SortDataByKey()
@@ -90,5 +83,12 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
         //todo cache sorting array (GC-less)
         data_ = newData;
+    }
+
+    public override string GetDebugString(bool detailed)
+    {
+        return
+            $"  Entries: {Count}, Map Entries: {keysToIndices_.Count}\n" +
+            $"  Map: {string.Join(", ", keysToIndices_.Select(x => x.Key + ":" + x.Value))}";
     }
 }

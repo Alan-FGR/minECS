@@ -20,11 +20,19 @@ public enum BufferType
 internal class ComponentBuffersManager : IDebugString
 {
     public int DenseCount { get; private set; } = 0;
+    public int SparseCount { get; private set; } = 0;
     private readonly ComponentBufferBase[] denseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
     private readonly ComponentBufferBase[] sparseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
 
     internal TypedComponentBufferBase<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
     {
+        for (var i = 0; i < SparseCount; i++)
+        {
+            ComponentBufferBase buffer = sparseBuffers_[i];
+            if (buffer is ComponentBufferSparse<T> castBuffer)
+                return castBuffer;
+        }
+
         for (var i = 0; i < DenseCount; i++)
         {
             ComponentBufferBase buffer = denseBuffers_[i];
@@ -37,6 +45,12 @@ internal class ComponentBuffersManager : IDebugString
 
     internal IEnumerable<ComponentBufferBase> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
     {
+        for (var i = 0; i < SparseCount; i++)
+        {
+            ComponentBufferBase buffer = denseBuffers_[i];
+            if (buffer.Matcher.Matches(flags))
+                yield return buffer;
+        }
         for (var i = 0; i < DenseCount; i++)
         {
             ComponentBufferBase buffer = denseBuffers_[i];
@@ -45,7 +59,7 @@ internal class ComponentBuffersManager : IDebugString
         }
     }
 
-    public void CreateComponentBuffer<T>(int initialSize, BufferType type) where T : struct
+    internal void CreateComponentBuffer<T>(int initialSize, BufferType type, IMappedBuffer registry) where T : struct
     {
         if (type == BufferType.Dense)
         {
@@ -55,7 +69,9 @@ internal class ComponentBuffersManager : IDebugString
         }
         else
         {
-            throw new NotImplementedException();
+            var buffer = new ComponentBufferSparse<T>(SparseCount, registry, initialSize);
+            sparseBuffers_[SparseCount] = buffer;
+            SparseCount++;
         }
     }
 
