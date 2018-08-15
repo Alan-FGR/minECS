@@ -35,6 +35,11 @@ struct Rect
 struct Name
 {
     public string name;
+
+    public override string ToString()
+    {
+        return name;
+    }
 }
 
 struct Health
@@ -57,17 +62,17 @@ public class MinEcsTest : Game
     public MinEcsTest()
     {
         graphicsDeviceManager_ = new GraphicsDeviceManager(this);
-        graphicsDeviceManager_.PreferredBackBufferWidth = 940;
+        graphicsDeviceManager_.PreferredBackBufferWidth = 1280;
         graphicsDeviceManager_.PreferredBackBufferHeight = 700;
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
 
         registry.RegisterComponent<Position>(BufferType.Sparse,1);
-        // registry.RegisterComponent<Velocity>(BufferType.Dense,1);
-        // registry.RegisterComponent<Rect>(BufferType.Dense,1);
-        // registry.RegisterComponent<Name>(BufferType.Dense,1);
-        // registry.RegisterComponent<Health>(BufferType.Dense,1);
-        return;
+        registry.RegisterComponent<Velocity>(BufferType.Sparse,1);
+        registry.RegisterComponent<Rect>(BufferType.Sparse,1);
+        registry.RegisterComponent<Health>(BufferType.Sparse,1);
+        registry.RegisterComponent<Name>(BufferType.Dense,1);
+        
         var r = new Random(42);
         for (int i = 0; i < 32; i++)
         {
@@ -84,8 +89,9 @@ public class MinEcsTest : Game
             if (r.Next(10) < 7) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(shuffA[i], shuffA[i]) });
             if (r.Next(10) < 7) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
             if(r.Next(10) < 7) registry.AddComponent((ulong)shuffB[i], new Rect());
-            if(r.Next(10) < 7) registry.AddComponent((ulong)shuffA[i], new Name());
             if(r.Next(10) < 7) registry.AddComponent((ulong)shuffC[i], new Health());
+            if(r.Next(10) < 4) 
+                registry.AddComponent((ulong)shuffA[i], new Name {name = $"n:{i}"});
         }
 
 
@@ -273,7 +279,7 @@ public class MinEcsTest : Game
         var buffers = b.__GetBuffers();
         RenderDenseMap(pos, buffers.entIdx2i, 28, keysRenderPos);
 
-        for (var i = 0; i < buffers.data.Length; i++)
+        for (var i = 0; i < b.ComponentCount; i++)
         {
             T comp = buffers.data[i];
             Vector2 dpos = ind2pos(pos + Vector2.UnitY * 8 + Vector2.UnitX * 28, i);
@@ -286,17 +292,18 @@ public class MinEcsTest : Game
         var b = (ComponentBufferSparse<T>) buf;
         var buffers = b.__GetBuffers();
 
-        DrawString(pos, "k2iS:", Color.White);
+        DrawString(pos, "k2iS:", Color.Magenta);
 
-        for (var i = 0; i < b.ComponentCount; i++)
+        for (var i = 0; i < buffers.entIdx2i.Length; i++)
         {
-            int entIdx = buffers.i2EntIdx[i];
+            int compIdx = buffers.entIdx2i[i];
             Vector2 posw = ind2pos(pos + Vector2.UnitX * 28, i);
-            DrawString(posw, entIdx + ":" + i, Color.Lime);
+            DrawString(posw, i + ":" + compIdx, compIdx >= 0 ? Color.Lime : Color.IndianRed);
 
             try
             {
-                DrawLine(keysRenderPos[entIdx] + Vector2.One * 10, posw + Vector2.One * 10,
+                if(keysRenderPos.ContainsKey(i))
+                DrawLine(keysRenderPos[i] + Vector2.One * 10, posw + Vector2.One * 10,
                     new Color(Color.Cyan, 0.5f));
             }
             catch

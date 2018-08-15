@@ -43,18 +43,18 @@ internal class ComponentBuffersManager : IDebugString
         throw new ArgumentOutOfRangeException($"{typeof(T).Name} buffer not found! Did you forget to register it?");
     }
 
-    internal IEnumerable<ComponentBufferBase> MatchersFromFlagsSlow(EntFlags flags) //todo rem ienumerable
+    internal IEnumerable<ComponentBufferBase> MatchersFromFlagsSlow(EntityData entityData) //todo rem ienumerable
     {
         for (var i = 0; i < SparseCount; i++)
         {
             ComponentBufferBase buffer = sparseBuffers_[i];
-            if (buffer.Matcher.Matches(flags))
+            if (buffer.Matcher.Matches(entityData.FlagsSparse))
                 yield return buffer;
         }
         for (var i = 0; i < DenseCount; i++)
         {
             ComponentBufferBase buffer = denseBuffers_[i];
-            if (buffer.Matcher.Matches(flags))
+            if (buffer.Matcher.Matches(entityData.FlagsDense))
                 yield return buffer;
         }
     }
@@ -91,7 +91,7 @@ internal class ComponentBuffersManager : IDebugString
 
     public void RemoveAllComponents(EntIdx entIdx, ref EntityData entityData)
     {
-        foreach (var buffer in MatchersFromFlagsSlow(entityData.FlagsDense))
+        foreach (var buffer in MatchersFromFlagsSlow(entityData))
         {
             buffer.RemoveComponent(entIdx, ref entityData);
         }
@@ -99,7 +99,7 @@ internal class ComponentBuffersManager : IDebugString
 
     public void UpdateEntityIndex(ref EntityData entityData, EntIdx oldIdx, EntIdx newIdx)
     {
-        foreach (var buffer in MatchersFromFlagsSlow(entityData.FlagsDense))
+        foreach (var buffer in MatchersFromFlagsSlow(entityData))
         {
             buffer.UpdateEntIdx(oldIdx, newIdx);
         }

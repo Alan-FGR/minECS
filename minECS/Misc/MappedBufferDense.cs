@@ -9,10 +9,10 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
     protected IReadOnlyDictionary<TKey, int> KeysToIndicesDebug => keysToIndices_;
 
-    public MappedBufferDense() : base(32)
+    public MappedBufferDense() : base(4)
     {
         // NOTE: We intentionally don't use initialSize for dense buffers
-        keysToIndices_ = new Dictionary<TKey, int>(32); 
+        keysToIndices_ = new Dictionary<TKey, int>(4);
     }
 
     public (Dictionary<TKey, int> k2i, TKey[] i2k, TData[] data) __GetBuffers()

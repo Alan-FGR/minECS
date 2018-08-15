@@ -13,7 +13,7 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
 
     public ComponentBufferSparse(int bufferIndex, IMappedBuffer entitiesBuffer, int initialSize = 1 << 10)
     {
-        buffer_ = new MappedBufferSparse<T>(entitiesBuffer);
+        buffer_ = new MappedBufferSparse<T>(entitiesBuffer, initialSize);
         EntFlags flag = 1u << bufferIndex;
         Matcher = new ComponentMatcher(flag);
         Sparse = true;

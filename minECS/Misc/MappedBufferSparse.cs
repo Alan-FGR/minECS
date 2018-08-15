@@ -19,7 +19,7 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
             var newK2i = new int[newSize];
             Array.Copy(keysToIndices_, 0, newK2i, 0, keysToIndices_.Length);
             for (int k = keysToIndices_.Length; k < newSize; k++)
-                keysToIndices_[k] = -1;
+                newK2i[k] = -1;
             keysToIndices_ = newK2i;
         };
     }

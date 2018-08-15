@@ -132,7 +132,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
                $" FlagsD:{Convert.ToString((long)GetDataFromKey(entUID).FlagsDense, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $" FlagsS:{Convert.ToString((long)GetDataFromKey(entUID).FlagsSparse, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
                $" Tags:  {Convert.ToString((long)GetDataFromKey(entUID).Tags, 2).PadLeft(32, '0').Replace('0', '_').Replace('1', '■')}\n" +
-               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlagsSlow(GetDataFromKey(entUID).FlagsDense).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
+               $" Components: {string.Join(", ", componentsManager_.MatchersFromFlagsSlow(GetDataFromKey(entUID)).Select(x => x.GetType().GenericTypeArguments[0].Name))}"
             ;
     }
 
@@ -152,7 +152,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
     public IEnumerable<ComponentBufferBase> GetDebugComponentBufferBases()
     {
-        return componentsManager_.MatchersFromFlagsSlow(ulong.MaxValue);
+        return componentsManager_.MatchersFromFlagsSlow(new EntityData(){FlagsDense = UInt64.MaxValue, FlagsSparse = UInt64.MaxValue});
     }
 
     #endregion
@@ -161,7 +161,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
     //TODO in loop, sort buffers by entries count NOT VIABLE
 
     //TODO signatures:
-    //              prefiltertags, action
+    //            * prefiltertags, action
     //              prefiltertags, action, postfilterexcludetags
     //              prefiltertags, action, postfilterexcludecomponents
     //              prefiltertags, action, postfilterexcludetags, postfilterexcludecomponents
