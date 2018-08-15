@@ -152,7 +152,47 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
     public IEnumerable<ComponentBufferBase> GetDebugComponentBufferBases()
     {
-        return componentsManager_.MatchersFromFlagsSlow(new EntityData(){FlagsDense = UInt64.MaxValue, FlagsSparse = UInt64.MaxValue});
+        return componentsManager_.MatchersFromFlagsSlow(new EntityData {FlagsDense = UInt64.MaxValue, FlagsSparse = UInt64.MaxValue});
+    }
+
+    public delegate void DebugLoopDelegate(int entIdx, Dictionary<ComponentBufferBase,int> buffersIndices);
+    public void DebugLoop(DebugLoopDelegate func, params string[] compNames) //no variadic templates so we use a hack
+    {
+        ComponentBufferBase[] compBuffers = new ComponentBufferBase[compNames.Length];
+
+        for (var i = 0; i < compNames.Length; i++)
+        {
+            string compName = compNames[i];
+            var compType = Type.GetType(compName);
+            var buffer = componentsManager_.GetType().GetMethod("GetBufferSlow").MakeGenericMethod(compType).Invoke(componentsManager_, new object[0]);
+            compBuffers[i] = (ComponentBufferBase) buffer;
+        }
+
+        for (var i = compBuffers[0].ComponentCount - 1; i >= 0; i--)
+        {
+            var comp = compBuffers[0].GetDebugUntypedBuffers();
+            EntIdx entIdx = comp.i2k[i];
+            ref EntityData entityData = ref data_[entIdx];
+
+            var indsDict = new Dictionary<ComponentBufferBase, int>();
+            indsDict.Add(compBuffers[0], i);
+
+            for (int j = 1; j < compBuffers.Length; j++)
+            {
+                if (compBuffers[j].HasComponentSlow(ref entityData))
+                {
+                    int indexInBuf = compBuffers[j].GetDebugIdxFromKey(entIdx);
+                    indsDict.Add(compBuffers[j], indexInBuf);
+                }
+                else
+                    break;
+
+                if (j == compBuffers.Length-1)
+                {
+                    func.Invoke(entIdx, indsDict);
+                }
+            }
+        }
     }
 
     #endregion

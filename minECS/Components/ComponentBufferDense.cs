@@ -87,5 +87,15 @@ public class ComponentBufferDense<T> : TypedComponentBufferBase<T>
         return (Matcher.Flag, buffer_.__GetBuffers().i2k);
     }
 
+    public override (object data, int[] i2k) GetDebugUntypedBuffers()
+    {
+        return (buffer_.data_, buffer_.keys_);
+    }
+
+    public override int GetDebugIdxFromKey(EntIdx key)
+    {
+        return buffer_.GetIndexFromKey(key);
+    }
+
     #endregion
 }

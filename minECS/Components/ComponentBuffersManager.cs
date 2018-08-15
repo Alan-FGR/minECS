@@ -24,7 +24,7 @@ internal class ComponentBuffersManager : IDebugString
     private readonly ComponentBufferBase[] denseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
     private readonly ComponentBufferBase[] sparseBuffers_ = new ComponentBufferBase[sizeof(EntFlags) * 8];
 
-    internal TypedComponentBufferBase<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
+    public TypedComponentBufferBase<T> GetBufferSlow<T>() where T : struct //TODO use a dict of comp types?
     {
         for (var i = 0; i < SparseCount; i++)
         {
@@ -108,6 +108,10 @@ internal class ComponentBuffersManager : IDebugString
     public void UpdateEntityIndices(int[] mm, EntityData[] entData)
     {
         foreach (var buffer in denseBuffers_)
+        {
+            buffer?.UpdateEntitiesIndices(mm, entData);
+        }
+        foreach (var buffer in sparseBuffers_)
         {
             buffer?.UpdateEntitiesIndices(mm, entData);
         }

@@ -42,10 +42,13 @@ public abstract class ComponentBufferBase : IDebugString
 
     public abstract string GetDebugString(bool detailed);
     public abstract (EntFlags flag, EntIdx[] endIdxs) GetDebugFlagAndEntIdxs();
+    public abstract (object data, int[] i2k) GetDebugUntypedBuffers();
+    public abstract EntIdx GetDebugIdxFromKey(EntIdx key);
 }
 
 public abstract class TypedComponentBufferBase<T> : ComponentBufferBase
 {
     public abstract void AddComponent(int entIdx, T component, ref EntityData dataToSetFlags);
     public abstract void SortComponents();
+
 }

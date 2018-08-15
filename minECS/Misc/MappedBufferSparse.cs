@@ -31,13 +31,19 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
 
     public void SetK2i(int[] keys, int[] ints)
     {
-        // keysToIndices_.Clear();
-        // for (var i = 0; i < keys.Length; i++)
-        // {
-        //     keysToIndices_.Add(keys[i], ints[i]);
-        //     keys_[ints[i]] = keys[i];
-        // }
-        throw new NotImplementedException();
+        //todo fixme this is slow - used only when reordering entities - i.e. offline so not critical
+
+        for (var i = 0; i < keysToIndices_.Length; i++)
+        {
+            keysToIndices_[i] = -1;
+        }
+
+        for (var i = 0; i < keys.Length; i++)
+        {
+            keysToIndices_[keys[i]] = ints[i];
+            keys_[ints[i]] = keys[i];todo
+        }
+
     }
 
     internal int GetIndexFromKey(int key)

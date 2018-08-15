@@ -59,6 +59,9 @@ public class MinEcsTest : Game
 
     static EntityRegistry registry = new EntityRegistry(8);
 
+    static Queue<(int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)> debugLoopQueue_ =
+        new Queue<(int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)>();
+
     public MinEcsTest()
     {
         graphicsDeviceManager_ = new GraphicsDeviceManager(this);
@@ -86,11 +89,11 @@ public class MinEcsTest : Game
         int[] shuffC = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
         for (int i = 0; i < 32; i++)
         {
-            if (r.Next(10) < 7) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(shuffA[i], shuffA[i]) });
-            if (r.Next(10) < 7) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
-            if(r.Next(10) < 7) registry.AddComponent((ulong)shuffB[i], new Rect());
-            if(r.Next(10) < 7) registry.AddComponent((ulong)shuffC[i], new Health());
-            if(r.Next(10) < 4) 
+            if (r.Next(10) < 9) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(shuffA[i], shuffA[i]) });
+            if (r.Next(10) < 9) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
+            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffB[i], new Rect());
+            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffC[i], new Health());
+            if(r.Next(10)  < 9) 
                 registry.AddComponent((ulong)shuffA[i], new Name {name = $"n:{i}"});
         }
 
@@ -144,7 +147,7 @@ public class MinEcsTest : Game
     {
         sb.DrawString(sf, str, pos, col);
     }
-
+    
     Vector2 ind2pos(Vector2 left, int i)
     {
         return left + i * Vector2.UnitX * 28;
@@ -176,6 +179,9 @@ public class MinEcsTest : Game
             registry.AddComponent(entuid, new T());
     }
 
+    private (int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)? CurrentDbgLoopEntry =>
+        debugLoopQueue_.Count > 0 ? debugLoopQueue_.Peek() : ((int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)?) null;
+
     void DrawBuffer(Vector2 position)
     {
         var buffers = registry.__GetBuffers();
@@ -201,6 +207,9 @@ public class MinEcsTest : Game
             DrawString(pos+Vector2.UnitY*0 , mask2str(val.Tags), Color.LightBlue);
             DrawString(pos+Vector2.UnitY*6 , mask2str(val.FlagsDense), Color.Gold);
             DrawString(pos+Vector2.UnitY*12,mask2str(val.FlagsSparse), Color.LightSeaGreen);
+
+            if (CurrentDbgLoopEntry != null && CurrentDbgLoopEntry.Value.entIdx == i)
+                sb.Draw(px, new Rectangle((int)pos.X, (int)pos.Y, 20, 30), new Color(Color.Red, 0.5f));
 
             if (imbutton(pos + Vector2.UnitY * -10, "REMOV"))
             {
@@ -255,6 +264,12 @@ public class MinEcsTest : Game
             var bd = buffer.GetDebugFlagAndEntIdxs();
             var keysps = RenderKeys(sp + Vector2.UnitY * 16, bd.endIdxs, "enti", buffer.ComponentCount, hspc, cols[c], keysPos);
 
+            if (CurrentDbgLoopEntry != null)
+                if (CurrentDbgLoopEntry.Value.buffersIndices.TryGetValue(buffer, out int indexInThisBuffer))
+                    sb.Draw(px, new Rectangle((int) sp.X + 28 + 28*indexInThisBuffer, (int) sp.Y+28, 20, 8), new Color(Color.Yellow, 1f));
+
+            //buffer.GetDebugIdxFromKey()
+
             if (!buffer.Sparse)
             {
                 GetType().GetMethod("RenderCompBufDense").MakeGenericMethod(comptype)
@@ -269,9 +284,19 @@ public class MinEcsTest : Game
             sp += Vector2.UnitY*96;
             c++;
         }
-        
 
+        if (debugLoopQueue_.Count > 0)
+        {
+            ctr++;
+            if (ctr > 10)
+            {
+                debugLoopQueue_.Dequeue();
+                ctr = 0;
+            }
+        }
     }
+
+    private int ctr = 0;
 
     public void RenderCompBufDense<T>(Vector2 pos, ComponentBufferBase buf, Dictionary<int, Vector2> keysRenderPos) where T : struct
     {
@@ -405,6 +430,20 @@ public class MinEcsTest : Game
             {
                 registry.GetType().GetMethod("SortComponents").MakeGenericMethod(comptype).Invoke(registry, new object[0]);
             }
+        }
+
+        if (imbutton(new Vector2(250 + c * 100, 10), "Loop Debug"))
+        {
+            List<string> compNames = new List<string>();
+            foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())
+            {
+                var typeStr = buffer.GetType().GenericTypeArguments[0].AssemblyQualifiedName;
+                compNames.Add(typeStr);
+            }
+            registry.DebugLoop((entIdx, compIdxsDict) =>
+            {
+                debugLoopQueue_.Enqueue((entIdx, compIdxsDict));
+            }, compNames.ToArray());
         }
 
         DrawBuffer(new Vector2(10,100));
