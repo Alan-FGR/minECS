@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
@@ -23,6 +25,8 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString, IMappedBuffe
     public event Action<int> OnBufferSizeChanged;
     public int AllocElementsCount => data_.Length;
     public int Count { get; private set; }
+
+    private int[] cachedMoveMap_ = null; //todo encaps
 
     protected MappedBufferBase(int initialSize)
     {
@@ -91,7 +95,30 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString, IMappedBuffe
 //        keys_[indexB] = keys_[indexA];
 //        keys_[indexA] = tmpKey;
 //    }
-    
+
+    int[] GetCachedMoveMapArr()
+    {
+        if (cachedMoveMap_ == null || cachedMoveMap_.Length < AllocElementsCount)
+            cachedMoveMap_ = new int[AllocElementsCount];
+        for (var i = 0; i < Count; i++)
+            cachedMoveMap_[i] = i;
+        return cachedMoveMap_;
+    }
+
+    protected int[] SortKeysAndGetMoves(IComparer<TKey> comparer = null)
+    {
+        var moveMap = GetCachedMoveMapArr();
+        Array.Sort(keys_, moveMap, 0, Count, comparer);
+        return moveMap;
+    }
+
+    protected int[] SortDataAndGetMoves()
+    {
+        var moveMap = GetCachedMoveMapArr();
+        Array.Sort(data_, moveMap, 0, Count);
+        return moveMap;
+    }
+
     protected virtual void UpdateEntryKey(int index, TKey key)
     {
         keys_[index] = key;

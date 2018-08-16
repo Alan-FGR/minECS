@@ -81,17 +81,11 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
 
     public void SortDataByKey()
     {
-        //create move map
-        int[] mm = new int[Count];
-        for (var i = 0; i < Count; i++)
-            mm[i] = i;
-
-        //sort the keys and get the moves
-        Array.Sort(keys_, mm, 0, Count);
+        var mm = SortKeysAndGetMoves();
 
         var newData = new TData[data_.Length];
 
-        for (var i = 0; i < mm.Length; i++)
+        for (var i = 0; i < Count; i++)
         {
             var oldIndex = mm[i];
             newData[i] = data_[oldIndex];
@@ -102,33 +96,28 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         data_ = newData;
     }
 
-    class CustomStringComparer : IComparer<int>
+    class CustomKeyComparer : IComparer<int>
     {
         private int[] RefK2i { get; }
 
-        public CustomStringComparer(int[] refK2i)
+        public CustomKeyComparer(int[] refK2i)
         {
             RefK2i = refK2i;
         }
 
-        int IComparer<int>.Compare(int x, int y)
+        public int Compare(int x, int y)
         {
             return RefK2i[x].CompareTo(RefK2i[y]);
         }
     }
 
-    public void SortDataByKeyRef(int[] refK2i)
+    public void SortDataByKeyRef(int[] refK2i) //THIS IS THE ONLY CRITICAL SORTING (streamline)
     {
-        //create move map
-        int[] mm = new int[Count];
+        var mm = SortKeysAndGetMoves(new CustomKeyComparer(refK2i));
+
+        var newData = new TData[Count]; //todo
+
         for (var i = 0; i < Count; i++)
-            mm[i] = i;
-
-        Array.Sort(keys_, mm, 0, Count, new CustomStringComparer(refK2i));
-
-        var newData = new TData[Count];
-
-        for (var i = 0; i < mm.Length; i++)
         {
             var oldIndex = mm[i];
             newData[i] = data_[oldIndex];

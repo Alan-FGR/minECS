@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
@@ -65,7 +66,7 @@ public class MinEcsTest : Game
     public MinEcsTest()
     {
         graphicsDeviceManager_ = new GraphicsDeviceManager(this);
-        graphicsDeviceManager_.PreferredBackBufferWidth = 1250;
+        graphicsDeviceManager_.PreferredBackBufferWidth = 800;
         graphicsDeviceManager_.PreferredBackBufferHeight = 700;
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
@@ -77,7 +78,8 @@ public class MinEcsTest : Game
         registry.RegisterComponent<Name>(BufferType.Dense,1);
         
         var r = new Random(42);
-        var qty = 27;
+        var qty = 1<<20;
+        //qty = 32;
         for (int i = 0; i < qty; i++)
         {
             var e = registry.CreateEntity();
@@ -182,8 +184,17 @@ public class MinEcsTest : Game
     private (int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)? CurrentDbgLoopEntry =>
         debugLoopQueue_.Count > 0 ? debugLoopQueue_.Peek() : ((int entIdx, Dictionary<ComponentBufferBase, int> buffersIndices)?) null;
 
+    public static List<string> timings = new List<string>();
+
     void DrawBuffer(Vector2 position)
     {
+        if (registry.Count > 256)
+        {
+            DrawString(position, $"TOO MUCH DATA TO RENDER! ({registry.Count} entities)\ntimings:\n{String.Join("\n", timings)}", Color.Red);
+
+            return;
+        }
+
         var buffers = registry.__GetBuffers();
 
         var entVals = position + Vector2.UnitY * 0;
@@ -397,6 +408,16 @@ public class MinEcsTest : Game
         return keysRenderPos;
     }
 
+    static Stopwatch sw = new Stopwatch();
+
+    public static void Time(string name, Action action)
+    {
+        sw.Restart();
+        action.Invoke();
+        timings.Add(name + ": " + sw.ElapsedMilliseconds + " ms");
+        //timings.Add(name + ": " + sw.ElapsedTicks / (Stopwatch.Frequency / 1000000f) + "us");
+    }
+
     protected override void Draw(GameTime gameTime)
     {
         // registry.Loop((int entIdx, ref Position pos, ref Velocity vel) =>
@@ -417,7 +438,10 @@ public class MinEcsTest : Game
 
         if (imbutton(new Vector2(110, 10), "Sort Entities"))
         {
-            registry.SortEntities();
+            Time("Sort Entities",() =>
+            {
+                registry.SortEntities();
+            });
         }
 
         Type firstCompType = null;
@@ -429,12 +453,18 @@ public class MinEcsTest : Game
 
             if (imbutton(new Vector2(250 + c++ * 100, 10), $"Sort {compNameStr}"))
             {
+                Time($"Sort {compNameStr}",() =>
+                {
                 registry.GetType().GetMethod("SortComponents").MakeGenericMethod(comptype).Invoke(registry, new object[0]);
+                });
             }
 
             if (firstCompType != null && buffer.Sparse && imbutton(new Vector2(150 + c * 100, 20), $"Streamline {compNameStr}"))
             {
+                Time( $"Streamline {compNameStr}",() =>
+                {
                 registry.GetType().GetMethod("StreamlineComponents").MakeGenericMethod(firstCompType, comptype).Invoke(registry, new object[0]);
+                });
             }
 
             if(buffer.Sparse)

@@ -67,27 +67,12 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
 
     public void SortEntities()
     {
-        //create move map
-        int[] mm = new int[Count];
-        for (var i = 0; i < Count; i++)
-            mm[i] = i;
-
-        //sort the data and get the moves
-        Array.Sort(data_, mm, 0, Count);
-
-        var newKeys = new EntUID[keys_.Length];
-
-        for (var i = 0; i < mm.Length; i++)
-        {
-            newKeys[i] = keys_[mm[i]];
-            keysToIndices_[keys_[mm[i]]] = i;
-        }
+        var moves = SortDataApplyKeysAndGetMoves();
         
-        //todo cache sorting array (GC-less)
+        //todo cache sorting array (GC-less) / non-critical - offline
         
-        componentsManager_.UpdateEntityIndices(mm, data_);
+        componentsManager_.UpdateEntityIndices(moves, data_);
         
-        keys_ = newKeys;
 
         // ( ͡~ ͜ʖ ͡°)
     }

@@ -64,13 +64,7 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
     public void SortDataByKey()
     {
-        //create move map
-        int[] mm = new int[Count];
-        for (var i = 0; i < Count; i++)
-            mm[i] = i;
-
-        //sort the keys and get the moves
-        Array.Sort(keys_, mm, 0, Count);
+        var mm = SortKeysAndGetMoves();
 
         var newData = new TData[data_.Length];
 
@@ -83,6 +77,23 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
 
         //todo cache sorting array (GC-less)
         data_ = newData;
+    }
+
+    public int[] SortDataApplyKeysAndGetMoves()
+    {
+        var moves = SortDataAndGetMoves();
+
+        var newKeys = new TKey[keys_.Length];
+
+        for (var i = 0; i < Count; i++)
+        {
+            newKeys[i] = keys_[moves[i]];
+            keysToIndices_[keys_[moves[i]]] = i;
+        }
+
+        keys_ = newKeys;
+
+        return moves;
     }
 
     public override string GetDebugString(bool detailed)
