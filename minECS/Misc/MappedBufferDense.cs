@@ -72,7 +72,7 @@ public class MappedBufferDense<TKey, TData> : MappedBufferBase<TKey, TData>
         //sort the keys and get the moves
         Array.Sort(keys_, mm, 0, Count);
 
-        var newData = new TData[Count];
+        var newData = new TData[data_.Length];
 
         for (var i = 0; i < mm.Length; i++)
         {

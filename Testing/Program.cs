@@ -65,7 +65,7 @@ public class MinEcsTest : Game
     public MinEcsTest()
     {
         graphicsDeviceManager_ = new GraphicsDeviceManager(this);
-        graphicsDeviceManager_.PreferredBackBufferWidth = 800;
+        graphicsDeviceManager_.PreferredBackBufferWidth = 1250;
         graphicsDeviceManager_.PreferredBackBufferHeight = 700;
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
@@ -145,7 +145,7 @@ public class MinEcsTest : Game
 
     public static void DrawString(Vector2 pos, string str, Color col)
     {
-        sb.DrawString(sf, str, pos, col);
+        sb.DrawString(sf, str ?? "null", pos, col);
     }
     
     Vector2 ind2pos(Vector2 left, int i)
@@ -441,7 +441,7 @@ public class MinEcsTest : Game
                 firstCompType = comptype;
         }
 
-        if (imbutton(new Vector2(250 + c * 100, 10), "Loop Debug"))
+        if (imbutton(new Vector2(250 + c * 100, 10), "Debug Loop"))
         {
             List<string> compNames = new List<string>();
             foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())

@@ -75,7 +75,7 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         //sort the data and get the moves
         Array.Sort(data_, mm, 0, Count);
 
-        var newKeys = new EntUID[Count];
+        var newKeys = new EntUID[keys_.Length];
 
         for (var i = 0; i < mm.Length; i++)
         {
