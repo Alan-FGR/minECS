@@ -96,7 +96,7 @@ public abstract class MappedBufferBase<TKey, TData> : IDebugString, IMappedBuffe
 //        keys_[indexA] = tmpKey;
 //    }
 
-    int[] GetCachedMoveMapArr()
+    protected int[] GetCachedMoveMapArr()
     {
         if (cachedMoveMap_ == null || cachedMoveMap_.Length < AllocElementsCount)
             cachedMoveMap_ = new int[AllocElementsCount];

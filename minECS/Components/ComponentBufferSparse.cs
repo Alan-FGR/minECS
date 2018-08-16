@@ -35,10 +35,10 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
         buffer_.SortDataByKey();
     }
     
-    public void Streamline(int[] refKeys)
-    {
-        buffer_.SortDataByKeyRef(refKeys);
-    }
+    // public void Streamline(int[] refKeys)
+    // {
+    //     buffer_.SortDataByKeyRef(refKeys);
+    // }
 
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {

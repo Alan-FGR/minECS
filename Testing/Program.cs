@@ -78,7 +78,7 @@ public class MinEcsTest : Game
         registry.RegisterComponent<Name>(BufferType.Dense,1);
         
         var r = new Random(42);
-        var qty = 1<<20;
+        var qty = 1<<17;
         //qty = 32;
         for (int i = 0; i < qty; i++)
         {
@@ -381,7 +381,7 @@ public class MinEcsTest : Game
         {
             T val = keys[i];
             Vector2 pos = ind2pos(keysPos + Vector2.UnitX * hspc, i);
-            keysRenderPos.Add(val, pos);
+            keysRenderPos[val] = pos; //todo fixme (dense only) use add here and pass dict from dense to check if key is valid before adding
             DrawString(pos, val.ToString(), Color.Magenta);
 
             if (entKeysPos != null)
@@ -459,13 +459,13 @@ public class MinEcsTest : Game
                 });
             }
 
-            if (firstCompType != null && buffer.Sparse && imbutton(new Vector2(150 + c * 100, 20), $"Streamline {compNameStr}"))
-            {
-                Time( $"Streamline {compNameStr}",() =>
-                {
-                registry.GetType().GetMethod("StreamlineComponents").MakeGenericMethod(firstCompType, comptype).Invoke(registry, new object[0]);
-                });
-            }
+            // if (firstCompType != null && buffer.Sparse && imbutton(new Vector2(150 + c * 100, 20), $"Streamline {compNameStr}"))
+            // {
+            //     Time( $"Streamline {compNameStr}",() =>
+            //     {
+            //     registry.GetType().GetMethod("StreamlineComponents").MakeGenericMethod(firstCompType, comptype).Invoke(registry, new object[0]);
+            //     });
+            // }
 
             if(buffer.Sparse)
                 firstCompType = comptype;

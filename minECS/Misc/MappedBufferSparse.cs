@@ -96,37 +96,39 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         data_ = newData;
     }
 
-    class CustomKeyComparer : IComparer<int>
-    {
-        private int[] RefK2i { get; }
+    // THIS IS SLOW AS BALLS :(
+    // class CustomKeyComparer : IComparer<int>
+    // {
+    //     private int[] RefK2i { get; }
+    //
+    //     public CustomKeyComparer(int[] refK2i)
+    //     {
+    //         RefK2i = refK2i;
+    //     }
+    //
+    //     public int Compare(int x, int y)
+    //     {
+    //         return RefK2i[x].CompareTo(RefK2i[y]);
+    //     }
+    // }
 
-        public CustomKeyComparer(int[] refK2i)
-        {
-            RefK2i = refK2i;
-        }
-
-        public int Compare(int x, int y)
-        {
-            return RefK2i[x].CompareTo(RefK2i[y]);
-        }
-    }
-
-    public void SortDataByKeyRef(int[] refK2i) //THIS IS THE ONLY CRITICAL SORTING (streamline)
-    {
-        var mm = SortKeysAndGetMoves(new CustomKeyComparer(refK2i));
-
-        var newData = new TData[Count]; //todo
-
-        for (var i = 0; i < Count; i++)
-        {
-            var oldIndex = mm[i];
-            newData[i] = data_[oldIndex];
-            keysToIndices_[keys_[i]] = i;
-        }
-
-        //todo cache sorting array (GC-less)
-        data_ = newData;
-    }
+    // public void SortDataByKeyRef(int[] refK2i) //THIS IS THE ONLY CRITICAL SORTING (streamline)
+    // {
+    //     var mm = GetCachedMoveMapArr();
+    //     Array.Sort(keys_, mm, 0, Count);
+    //
+    //     var newData = new TData[Count]; //todo
+    //
+    //     for (var i = 0; i < Count; i++)
+    //     {
+    //         var oldIndex = mm[i];
+    //         newData[i] = data_[oldIndex];
+    //         keysToIndices_[keys_[i]] = i;
+    //     }
+    //
+    //     //todo cache sorting array (GC-less)
+    //     data_ = newData;
+    // }
 
     public override string GetDebugString(bool detailed)
     {
