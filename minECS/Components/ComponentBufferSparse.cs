@@ -34,6 +34,11 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
     {
         buffer_.SortDataByKey();
     }
+    
+    public void Streamline(int[] refKeys)
+    {
+        buffer_.SortDataByKeyRef(refKeys);
+    }
 
     public override void RemoveComponent(EntIdx entIdx, ref EntityData dataToSetFlags)
     {
@@ -58,7 +63,7 @@ public class ComponentBufferSparse<T> : TypedComponentBufferBase<T>
             EntIdx entIdxInOldArr = moveMap[i];
             EntIdx entIdxInNewArr = i;
 
-            if (Matcher.Matches(sortedData[entIdxInNewArr].FlagsDense))
+            if (Matcher.Matches(sortedData[entIdxInNewArr].FlagsSparse))
             {
                 var componentIndex = buffer_.GetIndexFromKey(entIdxInOldArr);
                 var newKeyForCompIndex = entIdxInNewArr;

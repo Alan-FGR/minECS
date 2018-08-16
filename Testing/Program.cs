@@ -65,7 +65,7 @@ public class MinEcsTest : Game
     public MinEcsTest()
     {
         graphicsDeviceManager_ = new GraphicsDeviceManager(this);
-        graphicsDeviceManager_.PreferredBackBufferWidth = 1280;
+        graphicsDeviceManager_.PreferredBackBufferWidth = 800;
         graphicsDeviceManager_.PreferredBackBufferHeight = 700;
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
@@ -77,24 +77,24 @@ public class MinEcsTest : Game
         registry.RegisterComponent<Name>(BufferType.Dense,1);
         
         var r = new Random(42);
-        for (int i = 0; i < 32; i++)
+        var qty = 27;
+        for (int i = 0; i < qty; i++)
         {
             var e = registry.CreateEntity();
             //if(i%2==0)
             //registry.DeleteEntity(e);
         }
         
-        int[] shuffA = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
-        int[] shuffB = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
-        int[] shuffC = Enumerable.Range(0,32).OrderBy(a => Guid.NewGuid()).ToArray();
-        for (int i = 0; i < 32; i++)
+        int[] shuffA = Enumerable.Range(0,qty).OrderBy(a => Guid.NewGuid()).ToArray();
+        int[] shuffB = Enumerable.Range(0,qty).OrderBy(a => Guid.NewGuid()).ToArray();
+        int[] shuffC = Enumerable.Range(0,qty).OrderBy(a => Guid.NewGuid()).ToArray();
+        for (int i = 0; i < qty; i++)
         {
             if (r.Next(10) < 9) registry.AddComponent((ulong)shuffA[i], new Position { pos = new Vector2(shuffA[i], shuffA[i]) });
             if (r.Next(10) < 9) registry.AddComponent((ulong)shuffB[i], new Velocity { vel = new Vector2(r.Next(-1, 1), r.Next(-1, 1)) });
-            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffB[i], new Rect());
-            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffC[i], new Health());
-            if(r.Next(10)  < 9) 
-                registry.AddComponent((ulong)shuffA[i], new Name {name = $"n:{i}"});
+            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffC[i], new Rect());
+            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffB[i], new Health());
+            if(r.Next(10)  < 9) registry.AddComponent((ulong)shuffC[i], new Name {name = $"n:{i}"});
         }
 
 
@@ -288,7 +288,7 @@ public class MinEcsTest : Game
         if (debugLoopQueue_.Count > 0)
         {
             ctr++;
-            if (ctr > 10)
+            if (ctr > 3)
             {
                 debugLoopQueue_.Dequeue();
                 ctr = 0;
@@ -420,6 +420,7 @@ public class MinEcsTest : Game
             registry.SortEntities();
         }
 
+        Type firstCompType = null;
         var c = 0;
         foreach (ComponentBufferBase buffer in registry.GetDebugComponentBufferBases())
         {
@@ -430,6 +431,14 @@ public class MinEcsTest : Game
             {
                 registry.GetType().GetMethod("SortComponents").MakeGenericMethod(comptype).Invoke(registry, new object[0]);
             }
+
+            if (firstCompType != null && buffer.Sparse && imbutton(new Vector2(150 + c * 100, 20), $"Streamline {compNameStr}"))
+            {
+                registry.GetType().GetMethod("StreamlineComponents").MakeGenericMethod(firstCompType, comptype).Invoke(registry, new object[0]);
+            }
+
+            if(buffer.Sparse)
+                firstCompType = comptype;
         }
 
         if (imbutton(new Vector2(250 + c * 100, 10), "Loop Debug"))

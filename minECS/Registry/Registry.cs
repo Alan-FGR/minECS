@@ -124,6 +124,23 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         componentsManager_.GetBufferSlow<T>().SortComponents();
     }
 
+    public void StreamlineComponents<TModel, TStream>() where TModel : struct  where TStream : struct
+    {
+        var modelBuf = componentsManager_.GetBufferSlow<TModel>();
+        var bufToStreamline = componentsManager_.GetBufferSlow<TStream>();
+        if (modelBuf.Sparse && bufToStreamline.Sparse)
+        {
+            var castBuf = (ComponentBufferSparse<TModel>) modelBuf;
+            var castBufTS = (ComponentBufferSparse<TStream>) bufToStreamline;
+
+            castBufTS.Streamline(castBuf.__GetBuffers().entIdx2i);
+        }
+        else
+        {
+            throw new NotImplementedException("Streamlining dense buffers is not currently supported - it probably never makes sense");
+        }
+    }
+
     #region Debug
 
     public string GetEntityDebugData(EntUID entUID)

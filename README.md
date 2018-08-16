@@ -8,10 +8,6 @@ If you're looking for a C++ library, I highly recommend the excellent [EnTT](htt
 
 Now ships with a FNA-powered visual testing application:
 
-Unsorted buffers:
+## Testbed:
 
-![](ss1.PNG)
-
-Sorted buffers:
-
-![](ss2.PNG)
+![](gif1.gif)

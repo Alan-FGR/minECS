@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
@@ -41,9 +42,8 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
         for (var i = 0; i < keys.Length; i++)
         {
             keysToIndices_[keys[i]] = ints[i];
-            keys_[ints[i]] = keys[i];todo
+            keys_[ints[i]] = keys[i];
         }
-
     }
 
     internal int GetIndexFromKey(int key)
@@ -88,6 +88,43 @@ public class MappedBufferSparse<TData> : MappedBufferBase<int, TData>
 
         //sort the keys and get the moves
         Array.Sort(keys_, mm, 0, Count);
+
+        var newData = new TData[Count];
+
+        for (var i = 0; i < mm.Length; i++)
+        {
+            var oldIndex = mm[i];
+            newData[i] = data_[oldIndex];
+            keysToIndices_[keys_[i]] = i;
+        }
+
+        //todo cache sorting array (GC-less)
+        data_ = newData;
+    }
+
+    class CustomStringComparer : IComparer<int>
+    {
+        private int[] RefK2i { get; }
+
+        public CustomStringComparer(int[] refK2i)
+        {
+            RefK2i = refK2i;
+        }
+
+        int IComparer<int>.Compare(int x, int y)
+        {
+            return RefK2i[x].CompareTo(RefK2i[y]);
+        }
+    }
+
+    public void SortDataByKeyRef(int[] refK2i)
+    {
+        //create move map
+        int[] mm = new int[Count];
+        for (var i = 0; i < Count; i++)
+            mm[i] = i;
+
+        Array.Sort(keys_, mm, 0, Count, new CustomStringComparer(refK2i));
 
         var newData = new TData[Count];
 
