@@ -59,10 +59,11 @@ public partial class EntityRegistry : MappedBufferDense<EntUID, EntityData>
         ref EntityData replacingData = ref GetDataFromIndex(entIdx);
 
         componentsManager_.UpdateEntityIndex(ref replacingData, lastIndex, entIdx);
+    }
 
-        //        OnRemoveEntry?.Invoke(key, index, lastKey, lastIndex);
-        //        foreach (var synced in syncedIndices_)
-        //            synced.indicesMap[index] = -1;
+    public EntUID EntityUIDFromIdx(EntIdx index)
+    {
+        return GetKeyFromIndex(index);
     }
 
     public void SortEntities()

@@ -93,15 +93,23 @@ public class TestGame : Game
 
         if (mouseState.LeftButton == ButtonState.Pressed)
         {
-            var bullet = registry_.CreateEntity();
-            registry_.AddComponent(bullet, new Position{Point = playerPosition});
-            registry_.AddComponent(bullet, new Velocity{Point = new Point(0,-10)});
-            registry_.AddComponent(bullet, new Sprite{SourceRectangle = sprites_["laserBlue01"]});
+            for (int i = 0; i < 32; i++)
+            {
+                var bullet = registry_.CreateEntity();
+                registry_.AddComponent(bullet, new Position{Point = new Point(playerPosition.X+(i-16)*8, playerPosition.Y)});
+                registry_.AddComponent(bullet, new Velocity{Point = new Point(0,-10)});
+                registry_.AddComponent(bullet, new Sprite{SourceRectangle = sprites_["laserBlue01"]});
+            }
         }
 
         registry_.Loop((int entIdx, ref Position position, ref Velocity velocity) =>
             {
                 position.Point += velocity.Point;
+                if (position.Point.Y < -100)
+                {
+                    var entUid = registry_.EntityUIDFromIdx(entIdx);
+                    registry_.DeleteEntity(entUid);
+                }
             });
 
         base.Update(gameTime);
