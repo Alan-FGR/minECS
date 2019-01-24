@@ -1,3 +1,6 @@
 [submodule "Testing/FNA"]
 	path = Testing/FNA
 	url = https://github.com/FNA-XNA/FNA.git
+[submodule "BenchmarkEntt/entt"]
+	path = BenchmarkEntt/entt
+	url = https://github.com/skypjack/entt.git
