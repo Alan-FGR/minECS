@@ -49,12 +49,14 @@ class Program
         Benchmark(1000, BufferType.Sparse, true);
         Console.Clear();
 
-        Benchmark(100000, BufferType.Dense, true);
-        Benchmark(100000, BufferType.Sparse, true);
+        state = 42;
 
         Benchmark(100000, BufferType.Dense, false);
         Benchmark(100000, BufferType.Sparse, false);
-        
+
+        Benchmark(100000, BufferType.Dense, true);
+        Benchmark(100000, BufferType.Sparse, true);
+
         Console.ReadKey();
 
     }
@@ -154,7 +156,14 @@ class Program
         Measure("Propagated y to Int4 and Int5");
         registry.Loop((int index, ref Int4 int4, ref Int5 int5, ref Int6 int6) => { int5.y = int4.y; int6.y = int5.y; });
         Measure("Propagated y to Int5 and Int6");
-        
+
+        ulong checkSum = 0;
+        registry.Loop((int index, ref Int6 int6) =>
+        {
+            checkSum ^= (ulong) (int6.x + int6.y);
+        });
+
+        Console.WriteLine($"checksum: {checkSum}");
     }
 
 }

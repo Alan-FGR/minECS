@@ -1,12 +1,12 @@
 #include <cstdio>
 #include <chrono>
 #include <climits>
-#include "entt.hpp";
+#include "entt/src/entt/entt.hpp";
 
 using namespace std; // :trollface:
 
 #define TIME_HERE std::chrono::high_resolution_clock::now();
-#define ELAPSEDMS(time_point) (float)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-time_point).count());
+#define ELAPSEDMS(time_point) ((float)(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-time_point).count())/1000);
 
 struct Int1
 {
@@ -50,7 +50,7 @@ int xorshift(int maxExclusive = INT_MAX)
     return abs(x%maxExclusive);
 }
 
-void xorshuffle(std::vector<int> values)
+void xorshuffle(std::vector<int> &values)
 {
     for (int i = 0; i < values.size(); i++)
     {
@@ -64,34 +64,38 @@ void xorshuffle(std::vector<int> values)
 
 auto lastTimePoint = TIME_HERE;
 
-static void Measure(char* previousMeasurement = nullptr)
+static void Measure(const char* previousMeasurement = nullptr)
 {
-    if (previousMeasurement != nullptr) printf("%5.2f ms %s", ELAPSEDMS(lastTimePoint), previousMeasurement);
+    auto tp = ELAPSEDMS(lastTimePoint);
+    if (previousMeasurement != nullptr) printf("%5.2f ms %s\n", tp, previousMeasurement);
     lastTimePoint = TIME_HERE;
 }
 
-using namespace entt;
+//using namespace entt;
 
-void Benchmark(int entityCount, bool randomComponents);
+void Benchmark(int entityCount, bool randomComponents, bool persistent);
 
 int main()
 {
-    Benchmark(100000, true);
-    Benchmark(100000, true);
+    Benchmark(100000, false, false);
+    Benchmark(100000, false, true);
 
-    Benchmark(100000, false);
-    Benchmark(100000, false);
+    Benchmark(100000, true, false);
+    Benchmark(100000, true, true);
+
+    getchar();
 }
 
-void Benchmark(int entityCount, bool randomComponents)
+void Benchmark(int entityCount, bool randomComponents, bool persistent)
 {
-    printf("Benchmarking %d entities, random insertion order: %d", entityCount, randomComponents);
+    printf("Benchmarking %d entities, persistent: %d, random insertion order: %d\n", entityCount, persistent, randomComponents);
 
-    Registry<int> registry;
+    entt::registry registry;
 
-    registry.prepare<Int1, Int2, Int3, Int4, Int5, Int6>();
+    //registry.prepare<Int1, Int2, Int3, Int4, Int5, Int6>();
 
-    for (int i = 0; i < entityCount; i++) registry.create();
+    std::vector<std::uint32_t> ids;
+    for (int i = 0; i < entityCount; i++) ids.push_back(registry.create());
 
     vector<int> indices1;
     vector<int> indices2;
@@ -117,85 +121,70 @@ void Benchmark(int entityCount, bool randomComponents)
         xorshuffle(indices6);
     }
 
-    for (int i : indices1)
+    for (int i : indices1) registry.assign<Int1>(ids[i], xorshift());
+    for (int i : indices2) registry.assign<Int2>(ids[i], i, xorshift());
+    for (int i : indices3) registry.assign<Int3>(ids[i], i, i, xorshift());
+    for (int i : indices4) registry.assign<Int4>(ids[i], i, i, i, xorshift());
+    for (int i : indices5) registry.assign<Int5>(ids[i], i, i, i, i, xorshift());
+    for (int i : indices6) registry.assign<Int6>(ids[i], i, i, i, i, i, xorshift());
+
+    if (persistent)
     {
 
-    }
-
-    registry.
-
-    for (int i : indices1) registry.assign(registry.EntityUIDFromIdx(i), new Int1(xorshift()));
-    for (int i : indices2) registry.assign(registry.EntityUIDFromIdx(i), new Int2(i, xorshift()));
-    for (int i : indices3) registry.assign(registry.EntityUIDFromIdx(i), new Int3(i, i, xorshift()));
-    for (int i : indices4) registry.assign(registry.EntityUIDFromIdx(i), new Int4(i, i, i, xorshift()));
-    for (int i : indices5) registry.assign(registry.EntityUIDFromIdx(i), new Int5(i, i, i, i, xorshift()));
-    for (int i : indices6) registry.assign(registry.EntityUIDFromIdx(i), new Int6(i, i, i, i, i, xorshift()));
+        auto v0 = registry.view<Int1, Int2>();
+        auto v1 = registry.view<Int2, Int3>();
+        auto v2 = registry.view<Int3, Int4>();
+        auto v3 = registry.view<Int4, Int5>();
+        auto v4 = registry.view<Int5, Int6>();
+        auto v5 = registry.view<Int2, Int3, Int4>();
+        auto v6 = registry.view<Int3, Int4, Int5>();
+        auto v7 = registry.view<Int4, Int5, Int6>();
 
     Measure();
-    registry.Loop((int index, ref Int1 int1, ref Int2 int2) = > { int2.x = int1.x; });
+    v0.each([](auto& int1, auto& int2) { int2.x = int1.x; });
     Measure("Propagated x to Int2");
-    registry.Loop((int index, ref Int2 int2, ref Int3 int3) = > { int3.x = int2.x; });
+    v1.each([](auto& int2, auto& int3) { int3.x = int2.x; });
     Measure("Propagated x to Int3");
-    registry.Loop((int index, ref Int3 int3, ref Int4 int4) = > { int4.x = int3.x; });
+    v2.each([](auto& int3, auto& int4) { int4.x = int3.x; });
     Measure("Propagated x to Int4");
-    registry.Loop((int index, ref Int4 int4, ref Int5 int5) = > { int5.x = int4.x; });
+    v3.each([](auto& int4, auto& int5) { int5.x = int4.x; });
     Measure("Propagated x to Int5");
-    registry.Loop((int index, ref Int5 int5, ref Int6 int6) = > { int6.x = int5.x; });
+    v4.each([](auto& int5, auto& int6) { int6.x = int5.x; });
     Measure("Propagated x to Int6");
 
-    registry.Loop((int index, ref Int2 int2, ref Int3 int3, ref Int4 int4) = > { int3.y = int2.y; int4.y = int3.y; });
+    v5.each([](auto& int2, auto& int3, auto& int4) { int3.y = int2.y; int4.y = int3.y; });
     Measure("Propagated y to Int3 and Int4");
-    registry.Loop((int index, ref Int3 int3, ref Int4 int4, ref Int5 int5) = > { int4.y = int3.y; int5.y = int4.y; });
+    v6.each([](auto& int3, auto& int4, auto& int5) { int4.y = int3.y; int5.y = int4.y; });
     Measure("Propagated y to Int4 and Int5");
-    registry.Loop((int index, ref Int4 int4, ref Int5 int5, ref Int6 int6) = > { int5.y = int4.y; int6.y = int5.y; });
+    v7.each([](auto& int4, auto& int5, auto& int6) { int5.y = int4.y; int6.y = int5.y; });
     Measure("Propagated y to Int5 and Int6");
+    }
+    else {
+    Measure();
+    registry.view<Int1, Int2>().each([](auto& int1, auto& int2) { int2.x = int1.x; });
+    Measure("Propagated x to Int2");
+    registry.view<Int2, Int3>().each([](auto& int2, auto& int3) { int3.x = int2.x; });
+    Measure("Propagated x to Int3");
+    registry.view<Int3, Int4>().each([](auto& int3, auto& int4) { int4.x = int3.x; });
+    Measure("Propagated x to Int4");
+    registry.view<Int4, Int5>().each([](auto& int4, auto& int5) { int5.x = int4.x; });
+    Measure("Propagated x to Int5");
+    registry.view<Int5, Int6>().each([](auto& int5, auto& int6) { int6.x = int5.x; });
+    Measure("Propagated x to Int6");
 
+    registry.view<Int2, Int3, Int4>().each([](auto& int2, auto& int3, auto& int4) { int3.y = int2.y; int4.y = int3.y; });
+    Measure("Propagated y to Int3 and Int4");
+    registry.view<Int3, Int4, Int5>().each([](auto& int3, auto& int4, auto& int5) { int4.y = int3.y; int5.y = int4.y; });
+    Measure("Propagated y to Int4 and Int5");
+    registry.view<Int4, Int5, Int6>().each([](auto& int4, auto& int5, auto& int6) { int5.y = int4.y; int6.y = int5.y; });
+    Measure("Propagated y to Int5 and Int6");
+    }
+
+    std::uint64_t checkSum = 0;
+    registry.view<Int6>().each([&checkSum](auto& int6)
+    {
+        checkSum ^= (int6.x + int6.y);
+    });
+
+    printf("checksum: %llu\n", checkSum);
 }
-
-//int main()
-//{
-//    printf("starting tests...\n");
-//
-//    Registry<std::uint32_t> registry;
-//    registry.prepare<Position, Velocity>();
-//    auto view = registry.view<Position, Velocity>(persistent_t{});
-//
-//    printf("creating a ton of entities...\n");
-//    auto timePoint = TIME_HERE;
-//    for (int i = 0; i < (1<<16); ++i)
-//    {
-//        auto entity = registry.create();
-//        registry.assign<Position>(entity);
-//        registry.assign<Velocity>(entity, 0ul, 1ul);
-//    }
-//    auto elapsed = ELAPSEDuS(timePoint);
-//    printf("elapsed: %d\n", elapsed);
-//
-//    for (int i = 0; i < 10; ++i)
-//    {
-//        
-//    //timePoint = TIME_HERE;
-//    //printf("looping a ton of entities, 1 comp...\n");
-//    //registry.view<Position>().each([](auto ent, Position& pos)
-//    //{
-//    //    pos.x = 10;
-//    //});
-//    //elapsed = ELAPSEDuS(timePoint);
-//    //printf("elapsed: %d\n", elapsed);
-//
-//    printf("looping a ton of entities, 2 comp...\n");
-//    timePoint = TIME_HERE;
-//
-//    view.each([](auto ent, Position& pos, Velocity& vel)
-//    {
-//        pos.y += vel.y;
-//    });
-//
-//    elapsed = ELAPSEDuS(timePoint);
-//    printf("elapsed: %d\n", elapsed);
-//
-//    }
-//
-//    printf("finished tests...\n");
-//    getchar();
-//}
