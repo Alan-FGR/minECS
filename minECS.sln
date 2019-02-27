@@ -19,6 +19,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestGame", "TestGame\TestGa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BenchmarkMinECS", "BenchmarkMinECS\BenchmarkMinECS.csproj", "{5B39D899-4498-4C93-A0A0-A6DBB8276D7D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Archetypes", "Archetypes\Archetypes.csproj", "{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -121,6 +123,18 @@ Global
 		{5B39D899-4498-4C93-A0A0-A6DBB8276D7D}.Release|x64.Build.0 = Release|x64
 		{5B39D899-4498-4C93-A0A0-A6DBB8276D7D}.Release|x86.ActiveCfg = Release|Any CPU
 		{5B39D899-4498-4C93-A0A0-A6DBB8276D7D}.Release|x86.Build.0 = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|x64.Build.0 = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Debug|x86.Build.0 = Debug|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|x64.ActiveCfg = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|x64.Build.0 = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|x86.ActiveCfg = Release|Any CPU
+		{2EA615DC-D0FE-46EA-836C-EAC453D8B63C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

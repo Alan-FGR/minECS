@@ -4,3 +4,6 @@
 [submodule "BenchmarkEntt/entt"]
 	path = BenchmarkEntt/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "UnmanagedCollection"]
+	path = UnmanagedCollection
+	url = https://github.com/Alan-FGR/UnmanagedCollection
