@@ -62,8 +62,10 @@ public unsafe class UntypedBuffer //: IReadOnlyList<object>
         Count++;
     }
 
-    public T this[int index] => ((T*)buffer_)[index];
+    public T GetByIndex<T>(int index) where T : unmanaged => ((T*)buffer_)[index];
+
     
+
     ~UntypedBuffer()
     {
         if (unalignedPtr_ != IntPtr.Zero) Marshal.FreeHGlobal(unalignedPtr_);
