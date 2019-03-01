@@ -13,9 +13,10 @@ using System.Runtime.InteropServices;
 //    }
 //}
 
-public unsafe class UntypedBuffer //: IReadOnlyList<object>
+public unsafe class UntypedBuffer
 {
-    private IntPtr unalignedPtr_ = IntPtr.Zero;
+    //TODO use some native aligned_alloc... unfortunately there's no decent xplat one
+    private IntPtr unalignedPtr_ = IntPtr.Zero; 
 
     private void* buffer_ = null;
 
@@ -24,20 +25,20 @@ public unsafe class UntypedBuffer //: IReadOnlyList<object>
     private int bufferSizeInBytes_ => elementSizeInBytes_ * bufferSizeInElements_;
 
     public int Count { get; private set; } = 0;
-
+    
     public UntypedBuffer(int elementSize, int initSizeInElements)
     {
         elementSizeInBytes_ = elementSize;
 
         AllocBuffer(initSizeInElements);
 
-        Position pos = new Position {X=1337, Y=42};
-
-        Position buf = *(Position*)buffer_;
-
-        ((Position*)buffer_)[1023] = pos;
-
-        Position fbuf = ((Position*)buffer_)[1023];
+//        Position pos = new Position {X=1337, Y=42};
+//
+//        Position buf = *(Position*)buffer_;
+//
+//        ((Position*)buffer_)[1023] = pos;
+//
+//        Position fbuf = ((Position*)buffer_)[1023];
 
     }
 
@@ -51,21 +52,19 @@ public unsafe class UntypedBuffer //: IReadOnlyList<object>
         buffer_ = (void*)snappedPtr;
     }
 
-    public unsafe T* Cast<T>() where T : unmanaged
+    public T* CastBuffer<T>() where T : unmanaged
     {
         return (T*) buffer_;
     }
 
     public void Add<T>(T element) where T : unmanaged
     {
-        Cast<T>()[Count] = element;
+        ((T*)buffer_)[Count] = element;
         Count++;
     }
 
     public T GetByIndex<T>(int index) where T : unmanaged => ((T*)buffer_)[index];
-
     
-
     ~UntypedBuffer()
     {
         if (unalignedPtr_ != IntPtr.Zero) Marshal.FreeHGlobal(unalignedPtr_);
@@ -81,7 +80,7 @@ public struct Flags //todo single flag?
 //        bits_ = (ulong) (1 << position);
 //    }
 
-    //public static uint MaxQuantity => 64;
+    public static uint MaxQuantity => 64;
 
     public bool Contains(Flags flags)
     {
@@ -151,29 +150,52 @@ public class Registry
     //public ConcurrentDictionary<ulong, >
 
     private Dictionary<Flags, ArchetypePoolBase> archetypePools_;
+    private Type[] registeredComponents_ = new Type[Flags.MaxQuantity];
 
     public Registry()
     {
         archetypePools_ = new Dictionary<Flags, ArchetypePoolBase>();
     }
 
-
+    public int GetComponentFlag<T>()
+    {
+        for (int i = 0; i < registeredComponents_.Length; i++)
+            if (typeof(T) == registeredComponents_[i])
+                return i;
+        throw new AccessViolationException(
+            $"Flag for the component {typeof(T)} not registered. " +
+            $"Did you forget to register the component?");
+    }
 
     public void RegisterComponent<T>()
     {
-        
+        for (int i = 0; i < registeredComponents_.Length; i++)
+        {
+            if (registeredComponents_[i] == null)
+            {
+                registeredComponents_[i] = typeof(T);
+                return;
+            }
+        }
+        throw new AccessViolationException(
+            "No flag available for component. " +
+            "This probably means you need more bits in your flag type.");
     }
 
+    public void CreateEntity<T>()
+    {
+
+    }
 
 
 }
 
 class Program
 {
-    static void Main(string[] args)
+    static unsafe void Main(string[] args)
     {
-        
-        var buf = new UntypedBuffer(1024);
+
+        var registry = new Registry();
 
     }
 }
