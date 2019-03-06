@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
-public struct EntityID
-{
-    private Flags archetypeFlags_;
-    private uint indexInBuffer_;
-
-    public EntityID(Flags archetypeFlags, uint indexInBuffer)
-    {
-        archetypeFlags_ = archetypeFlags;
-        indexInBuffer_ = indexInBuffer;
-    }
-}
+//public struct EntityID
+//{
+//    private Flags archetypeFlags_;
+//    private uint indexInBuffer_;
+//
+//    public EntityID(Flags archetypeFlags, uint indexInBuffer)
+//    {
+//        archetypeFlags_ = archetypeFlags;
+//        indexInBuffer_ = indexInBuffer;
+//    }
+//}
 
 public unsafe class UntypedBuffer
 {
@@ -23,7 +24,7 @@ public unsafe class UntypedBuffer
     private IntPtr buffer_ = IntPtr.Zero;
 
     private int bufferSizeInElements_;
-    private int elementSizeInBytes_;
+    private int elementSizeInBytes_ { get; }
     private int bufferSizeInBytes_ => elementSizeInBytes_ * bufferSizeInElements_;
 
     public int Count { get; private set; } = 0;
@@ -196,6 +197,8 @@ static class BitUtils
 public unsafe class ArchetypePool
 {
     private Flags flags_;
+
+//    private UnmanagedCollection<ulong> ids_;
     private Dictionary<Flags, UntypedBuffer> componentPools_; //todo bench sparse
 
     public ArchetypePool(Flags* flags, int* sizes, int size)
@@ -218,6 +221,11 @@ public unsafe class ArchetypePool
     {
         return flags_.Contains(flags);
     }
+
+//    public void AddId(ulong id)
+//    {
+//        ids_.Add(id);
+//    }
 }
 
 //public class ArchetypePool : ArchetypePoolBase
@@ -273,6 +281,8 @@ public class Registry
     private Dictionary<Flags, ArchetypePool> archetypePools_;
     private Type[] registeredComponents_ = new Type[Flags.MaxQuantity];
 
+    private ulong curUID = 0;
+
     public Registry()
     {
         archetypePools_ = new Dictionary<Flags, ArchetypePool>();
@@ -308,21 +318,83 @@ public class Registry
             "This probably means you need more bits in your flag type.");
     }
 
-//    private ArchetypePool GetArchetypePool(Flags flags)
-//    {
-//        
-//    }
+    public delegate void LoopDelegate<T0>(int entIdx, ref T0 component0);
+    public delegate void LoopDelegate<T0, T1>(int entIdx, ref T0 component0, ref T1 component1);
 
-//    public void CreateEntity<TComp0>(TComp0 component0)
-//    {
-//        var componentsFlags = Flags.Join(
-//            GetComponentFlag<TComp0>()
-//            );
-//
-//
-//    }
+    private unsafe void Loop<T0, T1>(LoopDelegate<T0, T1> loopAction)
+        where T0 : unmanaged
+        where T1 : unmanaged
+    {
+        var flags = stackalloc Flags[]
+        {
+            GetComponentFlag<T0>(),
+            GetComponentFlag<T1>(),
+        };
+        
+        Flags archetypeFlags = Flags.Join(flags, 2);
 
-    public unsafe void CreateEntity<TComp0, TComp1>(
+        var matchingPools = new List<ArchetypePool>();
+
+        foreach (var pools in archetypePools_)
+            if (pools.Key.Contains(archetypeFlags))
+                matchingPools.Add(pools.Value);
+
+        //loop all pools and entities (todo MT)
+        foreach (var matchingPool in matchingPools)
+        {
+            
+        }
+
+        //var comp0buffer =
+
+        ArchetypePool pool;
+        if (!archetypePools_.TryGetValue(archetypeFlags, out pool))
+        {
+            var sizes = stackalloc int[]
+            {
+                sizeof(TComp0),
+                sizeof(TComp1),
+            };
+
+            pool = new ArchetypePool(flags, sizes, 2);
+            archetypePools_.Add(archetypeFlags, pool);
+        }
+
+        var compBuffers = t0B.__GetBuffers();
+        var lastCompIndex = t0B.ComponentCount - 1;
+        var compIdx2EntIdx = compBuffers.i2EntIdx;
+        var components = compBuffers.data;
+        var matcher1Flag = t1B.Matcher.Flag;
+        var matcher1Buffers = t1B.__GetBuffers();
+        for (var i = lastCompIndex; i >= 0; i--)
+        {
+            ref T0 component0 = ref components[i];
+            EntIdx entIdx = compIdx2EntIdx[i];
+            ref EntityData entityData = ref data_[entIdx];
+            if ((entityData.FlagsDense & matcher1Flag) != 0)
+            {
+                int indexInMatcher1 = matcher1Buffers.entIdx2i[entIdx];
+                ref T1 component1 = ref matcher1Buffers.data[indexInMatcher1];
+                loopAction(entIdx, ref component0, ref component1);
+            }//end if flags test 2
+        } // for components
+    } // Loop00
+
+    //    private ArchetypePool GetArchetypePool(Flags flags)
+    //    {
+    //        
+    //    }
+
+    //    public void CreateEntity<TComp0>(TComp0 component0)
+    //    {
+    //        var componentsFlags = Flags.Join(
+    //            GetComponentFlag<TComp0>()
+    //            );
+    //
+    //
+    //    }
+
+    public unsafe ulong CreateEntity<TComp0, TComp1>(
         TComp0 component0,
         TComp1 component1)
         where TComp0 : unmanaged
@@ -353,6 +425,7 @@ public class Registry
         pool.GetComponentBuffer(flags[0]).Add(component0);
         pool.GetComponentBuffer(flags[1]).Add(component1);
 
+        return curUID++;
     }
 
 //    public void CreateEntity<TComp0, TComp1, TComp2>(TComp0 component0, TComp1 component1, TComp2 component2)
