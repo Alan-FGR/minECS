@@ -3,15 +3,17 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-//struct EntityID
-//{
-//    private ulong value_;
-//
-//    public EntityID(ulong value)
-//    {
-//        value_ = value;
-//    }
-//}
+public struct EntityID
+{
+    private Flags archetypeFlags_;
+    private uint indexInBuffer_;
+
+    public EntityID(Flags archetypeFlags, uint indexInBuffer)
+    {
+        archetypeFlags_ = archetypeFlags;
+        indexInBuffer_ = indexInBuffer;
+    }
+}
 
 public unsafe class UntypedBuffer
 {
@@ -38,11 +40,8 @@ public unsafe class UntypedBuffer
         AllocBuffer(initSizeInElements);
 
 //        Position pos = new Position {X=1337, Y=42};
-//
 //        Position buf = *(Position*)buffer_;
-//
 //        ((Position*)buffer_)[1023] = pos;
-//
 //        Position fbuf = ((Position*)buffer_)[1023];
 
     }
@@ -66,6 +65,7 @@ public unsafe class UntypedBuffer
     {
         Add(ref element);
     }
+
     public void Add<T>(ref T element) where T : unmanaged
     {
         ((T*)buffer_)[Count] = element;
@@ -102,6 +102,8 @@ public struct Flags //todo single flag?
 {
     private ulong bits_;
 
+    public ulong Count => BitUtils.BitCount(bits_);
+
     public Flags(int position)
     {
         bits_ = (ulong)(1 << position);
@@ -114,14 +116,22 @@ public struct Flags //todo single flag?
         return (flags.bits_ & bits_) == flags.bits_;
     }
 
-    public static Flags Join(params Flags[] flags)
+    public static unsafe Flags Join(Flags* flags, int size)
     {
-        ulong bits = 0;
-        foreach (Flags flag in flags)
-            bits |= flag.bits_;
+        ulong bits = flags[0].bits_;
+        for (var i = 1; i < size; i++)
+            bits |= flags[i].bits_;
         return bits;
     }
 
+//    public static Flags Join(params Flags[] flags)
+//    {
+//        ulong bits = 0;
+//        foreach (Flags flag in flags)
+//            bits |= flag.bits_;
+//        return bits;
+//    }
+    
     public static implicit operator Flags(ulong bits)
     {
         return new Flags {bits_ = bits};
@@ -150,14 +160,58 @@ public struct Flags //todo single flag?
 //
 //}
 
-public abstract class ArchetypePoolBase
+static class BitUtils
+{
+    public static int BitPosition(uint flag)
+    {
+        for (int i = 0; i < 32; i++)
+            if (flag >> i == 1)
+                return i;
+        return -1;
+    }
+
+    public static int BitPosition(ulong flag)
+    {
+        for (int i = 0; i < 64; i++)
+            if (flag >> i == 1)
+                return i;
+        return -1;
+    }
+
+    public static uint BitCount(uint flags)
+    {
+        flags = flags - ((flags >> 1) & 0x55555555u);
+        flags = (flags & 0x33333333u) + ((flags >> 2) & 0x33333333u);
+        return (((flags + (flags >> 4)) & 0x0F0F0F0Fu) * 0x01010101u) >> 24;
+    }
+
+    public static ulong BitCount(ulong flags)
+    {
+        flags = flags - ((flags >> 1) & 0x5555555555555555ul);
+        flags = (flags & 0x3333333333333333ul) + ((flags >> 2) & 0x3333333333333333ul);
+        return unchecked(((flags + (flags >> 4)) & 0xF0F0F0F0F0F0F0Ful) * 0x101010101010101ul) >> 56;
+    }
+}
+
+public unsafe class ArchetypePool
 {
     private Flags flags_;
+    private Dictionary<Flags, UntypedBuffer> componentPools_; //todo bench sparse
 
-    public void SetFlagsRegistryFriend(Flags flags)
+    public ArchetypePool(Flags* flags, int* sizes, int size)
     {
-        //flags_
-        //Marshal.AllocHGlobal()
+        var allFlags = Flags.Join(flags, size);
+
+        flags_ = allFlags;
+        componentPools_ = new Dictionary<Flags, UntypedBuffer>();
+
+        for (int i = 0; i < size; i++)
+            componentPools_.Add(flags[i], new UntypedBuffer(sizes[i], 4)); //todo change starting size
+    }
+
+    public UntypedBuffer GetComponentBuffer(Flags flag)
+    {
+        return componentPools_[flag];
     }
 
     public bool HasComponents(Flags flags)
@@ -166,14 +220,14 @@ public abstract class ArchetypePoolBase
     }
 }
 
-public class ArchetypePool : ArchetypePoolBase
-{
-//    private UnmanagedCollection<unmanaged> pool_;
-//
-//    public ArchetypePool(Flags flags) : base(flags)
-//    {
-//    }
-}
+//public class ArchetypePool : ArchetypePoolBase
+//{
+////    private UnmanagedCollection<unmanaged> pool_;
+////
+////    public ArchetypePool(Flags flags) : base(flags)
+////    {
+////    }
+//}
 
 public struct Position
 {
@@ -216,15 +270,15 @@ public class Registry
 {
     //public ConcurrentDictionary<ulong, >
 
-    private Dictionary<Flags, ArchetypePoolBase> archetypePools_;
+    private Dictionary<Flags, ArchetypePool> archetypePools_;
     private Type[] registeredComponents_ = new Type[Flags.MaxQuantity];
 
     public Registry()
     {
-        archetypePools_ = new Dictionary<Flags, ArchetypePoolBase>();
+        archetypePools_ = new Dictionary<Flags, ArchetypePool>();
     }
 
-    public int GetComponentFlagPosition<T>()
+    public int GetComponentFlagPosition<T>() where T : unmanaged
     {
         for (int i = 0; i < registeredComponents_.Length; i++)
             if (typeof(T) == registeredComponents_[i])
@@ -234,7 +288,7 @@ public class Registry
             $"Did you forget to register the component?");
     }
 
-    public Flags GetComponentFlag<T>()
+    public Flags GetComponentFlag<T>() where T : unmanaged
     {
         return new Flags(GetComponentFlagPosition<T>());
     }
@@ -254,46 +308,63 @@ public class Registry
             "This probably means you need more bits in your flag type.");
     }
 
-    private ArchetypePoolBase GetArchetypePool(Flags flags)
+//    private ArchetypePool GetArchetypePool(Flags flags)
+//    {
+//        
+//    }
+
+//    public void CreateEntity<TComp0>(TComp0 component0)
+//    {
+//        var componentsFlags = Flags.Join(
+//            GetComponentFlag<TComp0>()
+//            );
+//
+//
+//    }
+
+    public unsafe void CreateEntity<TComp0, TComp1>(
+        TComp0 component0,
+        TComp1 component1)
+        where TComp0 : unmanaged
+        where TComp1 : unmanaged
     {
-        ArchetypePoolBase pool;
-        if (archetypePools_.TryGetValue(flags, out pool)) return pool;
-        pool = new ArchetypePool();
-        archetypePools_.Add(flags, pool);
-        return pool;
-    }
-
-    public void CreateEntity<TComp0>(TComp0 component0)
-    {
-        var componentsFlags = Flags.Join(
-            GetComponentFlag<TComp0>()
-            );
-
-
-    }
-
-    public void CreateEntity<TComp0, TComp1>(TComp0 component0, TComp1 component1)
-    {
-        var archetypeFlags = Flags.Join(
-            GetComponentFlag<TComp0>(),
-            GetComponentFlag<TComp1>()
-        );
-
-        var pool = GetArchetypePool(archetypeFlags);
-
-
-    }
-
-    public void CreateEntity<TComp0, TComp1, TComp2>(TComp0 component0, TComp1 component1, TComp2 component2)
-    {
-        var componentsFlags = Flags.Join(
+        var flags = stackalloc Flags[]
+        {
             GetComponentFlag<TComp0>(),
             GetComponentFlag<TComp1>(),
-            GetComponentFlag<TComp2>()
-        );
+        };
+        
+        //todo bench cache last optim
 
+        ArchetypePool pool;
+        Flags archetypeFlags = Flags.Join(flags, 2);
+        if (!archetypePools_.TryGetValue(archetypeFlags, out pool))
+        {
+            var sizes = stackalloc int[]
+            {
+                sizeof(TComp0),
+                sizeof(TComp1),
+            };
+            
+            pool = new ArchetypePool(flags, sizes, 2);
+            archetypePools_.Add(archetypeFlags, pool);
+        }
+
+        pool.GetComponentBuffer(flags[0]).Add(component0);
+        pool.GetComponentBuffer(flags[1]).Add(component1);
 
     }
+
+//    public void CreateEntity<TComp0, TComp1, TComp2>(TComp0 component0, TComp1 component1, TComp2 component2)
+//    {
+//        var componentsFlags = Flags.Join(
+//            GetComponentFlag<TComp0>(),
+//            GetComponentFlag<TComp1>(),
+//            GetComponentFlag<TComp2>()
+//        );
+//
+//
+//    }
 
 
 }
@@ -323,8 +394,8 @@ class Program
         reg.RegisterComponent<Position>();
         reg.RegisterComponent<Velocity>();
 
-        reg.CreateEntity(new Position(1,2));
-        reg.CreateEntity( new Velocity(9,8));
+//        reg.CreateEntity(new Position(1,2));
+//        reg.CreateEntity( new Velocity(9,8));
         reg.CreateEntity(new Position(1,2), new Velocity(9,8));
 
 
