@@ -342,7 +342,13 @@ public class Registry
         //loop all pools and entities (todo MT)
         foreach (var matchingPool in matchingPools)
         {
-            
+            var comp0buffer = matchingPool.GetComponentBuffer(flags[0]).CastBuffer<T0>();
+            var comp1buffer = matchingPool.GetComponentBuffer(flags[1]).CastBuffer<T1>();
+
+            for (int i = 0; i < matchingPool.; i++)
+            {
+                
+            }
         }
 
         //var comp0buffer =
