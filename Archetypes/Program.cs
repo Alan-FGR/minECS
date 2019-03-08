@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -123,7 +124,7 @@ public unsafe class UntypedBuffer
     }
 }
 
-public struct Flags //todo single flag?
+public struct Flags : IEquatable<Flags>
 {
     private ulong bits_;
 
@@ -184,6 +185,32 @@ public struct Flags //todo single flag?
     public override string ToString()
     {
         return $"FLG ...{Convert.ToString((long)bits_, 2).PadLeft(16, '0')}";
+    }
+
+    public bool Equals(Flags other)
+    {
+        return bits_ == other.bits_;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        return obj is Flags other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return bits_.GetHashCode();
+    }
+
+    public static bool operator ==(Flags left, Flags right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Flags left, Flags right)
+    {
+        return !left.Equals(right);
     }
 }
 
@@ -307,6 +334,24 @@ public unsafe class ArchetypePool
         foreach (var componentPool in componentPools_)
             componentPool.Value.CopyElement(Count - 1, index);
         Count--;
+    }
+
+    public void CopyComponentsToPool(ArchetypePool newPool)
+    {
+        foreach (var componentPool in componentPools_)
+        {
+            
+        }
+//        foreach (Flags flag in separatedExistingComponentsFlags)
+//        {
+//            var oldBuffer = oldPool.GetComponentBuffer(flag);
+//            var elSize = registeredComponentsSizes_[flag.FirstPosition];
+//            var newBuffer = newPool.GetComponentBuffer(flag);
+//            Buffer.MemoryCopy(
+//                (void*)(oldBuffer + ((int)oldPoolIdx * elSize)),
+//                (void*)(newBuffer + ((int)newPool.Count * elSize)),
+//                elSize, elSize);
+//        }
     }
 
 //    public void AddId(ulong id)
@@ -544,7 +589,7 @@ public class Registry
     {
         var entityData = entities_[entity];
 
-        var separatedExistingComponentsFlags = entityData.ArchetypeFlags.Separate();
+        //var separatedExistingComponentsFlags = entityData.ArchetypeFlags.Separate();
         var oldPool = archetypePools_[entityData.ArchetypeFlags];
         var oldPoolIdx = entityData.IndexInBuffer;
 
@@ -576,16 +621,16 @@ public class Registry
         newPool.AssureRoomForMore(1);
 
         //copy data from old to new archetype pool
-        foreach (Flags flag in separatedExistingComponentsFlags)
-        {
-            var oldBuffer = oldPool.GetComponentBuffer(flag);
-            var elSize = registeredComponentsSizes_[flag.FirstPosition];
-            var newBuffer = newPool.GetComponentBuffer(flag);
-            Buffer.MemoryCopy(
-                (void*)(oldBuffer + ((int)oldPoolIdx * elSize)),
-                (void*)(newBuffer + ((int)newPool.Count * elSize)),
-                elSize, elSize);
-        }
+//        foreach (Flags flag in separatedExistingComponentsFlags)
+//        {
+//            var oldBuffer = oldPool.GetComponentBuffer(flag);
+//            var elSize = registeredComponentsSizes_[flag.FirstPosition];
+//            var newBuffer = newPool.GetComponentBuffer(flag);
+//            Buffer.MemoryCopy(
+//                (void*)(oldBuffer + ((int)oldPoolIdx * elSize)),
+//                (void*)(newBuffer + ((int)newPool.Count * elSize)),
+//                elSize, elSize);
+//        }
 
         var newCompBuffer = newPool.GetUntypedBuffer(newComponentFlag);
         newCompBuffer.Set(ref comp, newPool.Count);
@@ -597,10 +642,107 @@ public class Registry
 
 }
 
+public unsafe struct MiniDict<TKey, TValue> where TKey : unmanaged, IEquatable<TKey>
+{
+    private TKey* keys_;
+    private TValue[] data_;
+    public int Count { get; }
+
+    public MiniDict(TKey[] keys, TValue[] values = null)
+    {
+        Count = keys.Length;
+        keys_ = (TKey*)Marshal.AllocHGlobal(Count * sizeof(TKey));
+        fixed (void* k = &keys[0])
+            Buffer.MemoryCopy(k, (void*)keys_, Count*sizeof(TKey), Count*sizeof(TKey));
+        data_ = values ?? new TValue[Count];
+    }
+    
+    private int FindKeyIndex(TKey key)
+    {
+        for (int i = 0; i < Count; i++)
+            if (keys_[i].Equals(key))
+                return i;
+        return -1;
+    }
+    
+    public TValue this[TKey key]
+    {
+        set => data_[FindKeyIndex(key)] = value;
+        get => data_[FindKeyIndex(key)];
+    }
+
+    public override string ToString()
+    {
+        var sw = new StringWriter();
+        sw.WriteLine($"MiniDict<{nameof(TKey)}, {nameof(TValue)}>({Count} items):");
+        for (int i = 0; i < Count; i++)
+            sw.WriteLine($"  {keys_[i]}: {data_[i]}");
+        return sw.ToString();
+    }
+}
+
 class Program
 {
     static unsafe void Main(string[] args)
     {
+
+
+        const int V = 10;
+        var keys = new Flags[V];
+        for (int i = 0; i < V; i++)
+            keys[i] = new Flags(i);
+        var mDict = new MiniDict<Flags, int>(keys);
+
+        var nDict = new Dictionary<Flags, int>(V);
+
+
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)] = i;
+        }
+
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)] = i;
+        }
+
+        var sw = Stopwatch.StartNew();
+        const int V1 = 0xfffff;
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)]++;
+        }
+        Console.WriteLine("m "+sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)]++;
+        }
+        Console.WriteLine(sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)]++;
+        }
+        Console.WriteLine("m "+sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)]++;
+        }
+        Console.WriteLine(sw.ElapsedMilliseconds);
+
+        Console.ReadKey();
+        return;
+
+
 //        var utb = UntypedBuffer.CreateForType<Position>(4);
 //
 //        utb.Add(new Position(1,2));
