@@ -9,9 +9,9 @@ using System.Runtime.InteropServices;
 public struct EntityData
 {
     public Flags ArchetypeFlags { get; }
-    public uint IndexInBuffer { get; }
+    public int IndexInBuffer { get; }
 
-    public EntityData(Flags archetypeFlags, uint indexInBuffer)
+    public EntityData(Flags archetypeFlags, int indexInBuffer)
     {
         ArchetypeFlags = archetypeFlags;
         IndexInBuffer = indexInBuffer;
@@ -38,7 +38,7 @@ public unsafe class UntypedBuffer
 
 //    private void* End => (void*)(buffer_ + bufferSizeInBytes_);
 //    private void* Last => (void*)(buffer_ + (bufferSizeInBytes_ - elementSizeInBytes_));
-    private void* At(uint index) => (void*)(buffer_ + (int)index * ElementSizeInBytes);
+    private void* At(int index) => (void*)(buffer_ + index * ElementSizeInBytes);
 //    public T CastAt<T>(int index) where T : unmanaged => *(T*)At(index);
 
 //    public static UntypedBuffer CreateForType<T>(int initSizeInElements) where T : unmanaged
@@ -93,24 +93,18 @@ public unsafe class UntypedBuffer
 //        Add(ref element);
 //    }
 
-    public void AssureRoomForMore(uint last, int quantity)
+    public void AssureRoomForMore(int last, int quantity)
     {
         if (last * ElementSizeInBytes + (ElementSizeInBytes*quantity) > bufferSizeInBytes_)
             UpdateBuffer(bufferSizeInBytes_*2); //todo
     }
 
-    public void Add<T>(ref T element, uint last) where T : unmanaged
-    {
-        AssureRoomForMore(last, 1);
-        *(T*)At(last) = element;
-    }
-
-    public void Set<T>(ref T element, uint position) where T : unmanaged
+    public void Set<T>(ref T element, int position) where T : unmanaged
     {
         *(T*)At(position) = element;
     }
 
-    public void CopyElement(uint src, uint dst)
+    public void CopyElement(int src, int dst)
     {
         Buffer.MemoryCopy(At(src), At(dst), ElementSizeInBytes, ElementSizeInBytes);
     }
@@ -272,7 +266,7 @@ static class BitUtils
 public unsafe class ArchetypePool
 {
     private Flags archetypeFlags_;
-    public uint Count { get; set; }
+    public int Count { get; set; }
 
 //    private UnmanagedCollection<ulong> ids_;
     private Dictionary<Flags, UntypedBuffer> componentPools_; //todo bench sparse
@@ -316,32 +310,43 @@ public unsafe class ArchetypePool
             componentPool.Value.AssureRoomForMore(Count, quantity);
     }
     
-    public uint Add<T0>(Flags* flags, T0 t0)
+    public int Add<T0>(Flags* flags, T0 t0)
         where T0 : unmanaged
     {
-        componentPools_[flags[0]].Add(ref t0, Count);
+        var p0 = componentPools_[flags[0]];
+        
+        p0.AssureRoomForMore(Count, 1);
+        p0.Set(ref t0, Count);
+
         Count++;
-        return Count - 1u;
+        return Count - 1;
     }
 
-    public uint Add<T0, T1>(Flags* flags, T0 t0, T1 t1)
+    public int Add<T0, T1>(Flags* flags, T0 t0, T1 t1)
         where T0 : unmanaged
         where T1 : unmanaged
     {
-        componentPools_[flags[0]].Add(ref t0, Count);
-        componentPools_[flags[1]].Add(ref t1, Count);
+        var p0 = componentPools_[flags[0]];
+        var p1 = componentPools_[flags[1]];
+        
+        p0.AssureRoomForMore(Count, 1);
+        p0.Set(ref t0, Count);
+        
+        p1.AssureRoomForMore(Count, 1);
+        p1.Set(ref t1, Count);
+        
         Count++;
-        return Count - 1u;
+        return Count - 1;
     }
 
-    public void Remove(uint index)
+    public void Remove(int index)
     {
         foreach (var componentPool in componentPools_)
             componentPool.Value.CopyElement(Count - 1, index);
         Count--;
     }
 
-    public void CopyComponentsToPool(uint oldPoolIndex, ArchetypePool newPool, uint newPoolIndex)
+    public void CopyComponentsToPool(int oldPoolIndex, ArchetypePool newPool, int newPoolIndex)
     {
         foreach (var pair in componentPools_)
         {
@@ -350,8 +355,8 @@ public unsafe class ArchetypePool
             var elSize = oldBuffer.ElementSizeInBytes;
             var newBuffer = newPool.GetComponentBuffer(flag);
             Buffer.MemoryCopy(
-                (void*)(oldBuffer.Data + ((int)oldPoolIndex * elSize)),
-                (void*)(newBuffer + ((int)newPool.Count * elSize)),
+                (void*)(oldBuffer.Data + (oldPoolIndex * elSize)),
+                (void*)(newBuffer + (newPool.Count * elSize)),
                 elSize, elSize);
         }
     }
@@ -479,7 +484,7 @@ public class Registry
         {
             var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
 
-            for (uint i = 0; i < matchingPool.Value.Count; i++)
+            for (int i = 0; i < matchingPool.Value.Count; i++)
             {
                 loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i]);
             }
@@ -510,7 +515,7 @@ public class Registry
             var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
             var comp1buffer = matchingPool.Value.GetComponentBuffer<T1>(flags[1]);
 
-            for (uint i = 0; i < matchingPool.Value.Count; i++)
+            for (int i = 0; i < matchingPool.Value.Count; i++)
             {
                 loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i], ref comp1buffer[i]);
             }
@@ -540,7 +545,7 @@ public class Registry
             archetypePools_.Add(archetypeFlags, pool);
         }
 
-        uint archetypePoolIndex = pool.Add(flags, component0);
+        int archetypePoolIndex = pool.Add(flags, component0);
 
         var newId = curUID;
         entities_.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
@@ -575,7 +580,7 @@ public class Registry
             archetypePools_.Add(archetypeFlags, pool);
         }
 
-        uint archetypePoolIndex = pool.Add(flags, component0, component1);
+        int archetypePoolIndex = pool.Add(flags, component0, component1);
 
         var newId = curUID;
         entities_.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
