@@ -16,6 +16,11 @@ public struct EntityData
         ArchetypeFlags = archetypeFlags;
         IndexInBuffer = indexInBuffer;
     }
+
+    public override string ToString()
+    {
+        return $"{ArchetypeFlags}, Index: {IndexInBuffer}";
+    }
 }
 
 public unsafe class UntypedBuffer
@@ -449,9 +454,9 @@ public class Registry
             "This probably means you need more bits in your flag type.");
     }
 
-    public delegate void LoopDelegate<T0>(int entIdx, ref T0 component0);
+    public delegate void LoopDelegate<T0>(EntityData entityData, ref T0 component0);
 
-    public delegate void LoopDelegate<T0, T1>(int entIdx, ref T0 component0, ref T1 component1);
+    public delegate void LoopDelegate<T0, T1>(EntityData entityData, ref T0 component0, ref T1 component1);
 
     public unsafe void Loop<T0>(LoopDelegate<T0> loopAction)
         where T0 : unmanaged
@@ -463,20 +468,20 @@ public class Registry
 
         Flags archetypeFlags = Flags.Join(flags, 1);
 
-        var matchingPools = new List<ArchetypePool>();
+        var matchingPools = new List<KeyValuePair<Flags, ArchetypePool>>();
 
         foreach (var pools in archetypePools_)
             if (pools.Key.Contains(archetypeFlags))
-                matchingPools.Add(pools.Value);
+                matchingPools.Add(pools);
 
         //loop all pools and entities (todo MT)
         foreach (var matchingPool in matchingPools)
         {
-            var comp0buffer = matchingPool.GetComponentBuffer<T0>(flags[0]);
+            var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
 
-            for (int i = 0; i < matchingPool.Count; i++)
+            for (uint i = 0; i < matchingPool.Value.Count; i++)
             {
-                loopAction(matchingPool., ref comp0buffer[i]);
+                loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i]);
             }
         }
     }
@@ -493,21 +498,21 @@ public class Registry
 
         Flags archetypeFlags = Flags.Join(flags, 2);
 
-        var matchingPools = new List<ArchetypePool>();
+        var matchingPools = new List<KeyValuePair<Flags, ArchetypePool>>();
 
         foreach (var pools in archetypePools_)
             if (pools.Key.Contains(archetypeFlags))
-                matchingPools.Add(pools.Value);
+                matchingPools.Add(pools);
 
         //loop all pools and entities (todo MT)
         foreach (var matchingPool in matchingPools)
         {
-            var comp0buffer = matchingPool.GetComponentBuffer<T0>(flags[0]);
-            var comp1buffer = matchingPool.GetComponentBuffer<T1>(flags[1]);
+            var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
+            var comp1buffer = matchingPool.Value.GetComponentBuffer<T1>(flags[1]);
 
-            for (int i = 0; i < matchingPool.Count; i++)
+            for (uint i = 0; i < matchingPool.Value.Count; i++)
             {
-                loopAction(i, ref comp0buffer[i], ref comp1buffer[i]);
+                loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i], ref comp1buffer[i]);
             }
         }
     }
@@ -617,18 +622,6 @@ public class Registry
         oldPool.CopyComponentsToPool(oldPoolIndex, newArchetypePool, newArchetypePool.Count);
         oldPool.Remove(oldPoolIndex);
 
-        //copy data from old to new archetype pool
-//        foreach (Flags flag in separatedExistingComponentsFlags)
-//        {
-//            var oldBuffer = oldPool.GetComponentBuffer(flag);
-//            var elSize = registeredComponentsSizes_[flag.FirstPosition];
-//            var newBuffer = newPool.GetComponentBuffer(flag);
-//            Buffer.MemoryCopy(
-//                (void*)(oldBuffer + ((int)oldPoolIdx * elSize)),
-//                (void*)(newBuffer + ((int)newPool.Count * elSize)),
-//                elSize, elSize);
-//        }
-
         var newCompBuffer = newArchetypePool.GetUntypedBuffer(newComponentFlag);
         newCompBuffer.Set(ref comp, newArchetypePool.Count);
 
@@ -681,43 +674,25 @@ class Program
 {
     static unsafe void Main(string[] args)
     {
-
-//        var utb = UntypedBuffer.CreateForType<Position>(4);
-//
-//        utb.Add(new Position(1,2));
-//        utb.Add(new Position(3,4));
-//        utb.Add(new Position(5,6));
-//        utb.Add(new Position(7,8));
-//
-//        utb.ForEach((ref Position position) => Console.WriteLine(position));
-//
-//        utb.Remove(1);
-//
-//        Console.WriteLine("---------------");
-//
-//        //utb.Add(new Position(7,8));
-//        utb.ForEach((ref Position position) => Console.WriteLine(position));
-
-        
-
-
         var reg = new Registry();
         reg.RegisterComponent<Position>();
         reg.RegisterComponent<Velocity>();
         reg.RegisterComponent<Name>();
 
-        var s = sizeof(Name);
-
         var pe = reg.CreateEntity(new Position(1,2));
-        reg.AddComponent(pe, new Velocity(3,4));
+        reg.AddComponent(pe, new Velocity(1,2));
 
-        reg.CreateEntity( new Velocity(9,8));
-        reg.CreateEntity( new Position(19,18));
+        reg.CreateEntity( new Velocity(3,4));
+        reg.CreateEntity( new Position(5,6));
 //        
 //        var entity = reg.CreateEntity(new Position(1, 2), new Velocity(9, 8));
 //        reg.AddComponent(entity, new Name());
 
-        reg.CreateEntity(new Position(11, 21), new Velocity(91, 81));
+        reg.CreateEntity(new Position(7, 8), new Velocity(7, 8));
+
+        var etr = reg.CreateEntity(new Position(9, 10), new Velocity(9, 10));
+
+
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
@@ -731,19 +706,26 @@ class Program
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 1182));
 
-        reg.Loop((int idx, ref Position p, ref Velocity v) =>
+        reg.Loop((EntityData e, ref Position p, ref Velocity v) =>
         {
-            Console.WriteLine(idx);
+            Console.WriteLine(e);
             Console.WriteLine(p);
             Console.WriteLine(v);
             Console.WriteLine("------------");
         });
 
-        reg.Loop((int idx, ref Position p) =>
+        reg.Loop((EntityData e, ref Position p) =>
         {
-            Console.WriteLine(idx);
+            Console.WriteLine(e);
             Console.WriteLine(p);
             Console.WriteLine("============");
+        });
+        
+        reg.Loop((EntityData e, ref Velocity p) =>
+        {
+            Console.WriteLine(e);
+            Console.WriteLine(p);
+            Console.WriteLine("#############");
         });
 
 
