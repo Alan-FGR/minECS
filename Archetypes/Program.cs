@@ -28,12 +28,12 @@ public unsafe class UntypedBuffer
     #if DEBUG
     readonly 
     #endif
-    private int elementSizeInBytes_;
+    public int ElementSizeInBytes;
     private int bufferSizeInBytes_;
 
 //    private void* End => (void*)(buffer_ + bufferSizeInBytes_);
 //    private void* Last => (void*)(buffer_ + (bufferSizeInBytes_ - elementSizeInBytes_));
-    private void* At(uint index) => (void*)(buffer_ + (int)index * elementSizeInBytes_);
+    private void* At(uint index) => (void*)(buffer_ + (int)index * ElementSizeInBytes);
 //    public T CastAt<T>(int index) where T : unmanaged => *(T*)At(index);
 
 //    public static UntypedBuffer CreateForType<T>(int initSizeInElements) where T : unmanaged
@@ -43,8 +43,8 @@ public unsafe class UntypedBuffer
 
     public UntypedBuffer(int elementSize, int initSizeInElements)
     {
-        elementSizeInBytes_ = elementSize;
-        UpdateBuffer(initSizeInElements * elementSizeInBytes_);
+        ElementSizeInBytes = elementSize;
+        UpdateBuffer(initSizeInElements * ElementSizeInBytes);
     }
 
     private static (IntPtr unaligned, IntPtr aligned) AlignedAlloc(int size)
@@ -90,7 +90,7 @@ public unsafe class UntypedBuffer
 
     public void AssureRoomForMore(uint last, int quantity)
     {
-        if (last * elementSizeInBytes_ + (elementSizeInBytes_*quantity) > bufferSizeInBytes_)
+        if (last * ElementSizeInBytes + (ElementSizeInBytes*quantity) > bufferSizeInBytes_)
             UpdateBuffer(bufferSizeInBytes_*2); //todo
     }
 
@@ -107,7 +107,7 @@ public unsafe class UntypedBuffer
 
     public void CopyElement(uint src, uint dst)
     {
-        Buffer.MemoryCopy(At(src), At(dst), elementSizeInBytes_, elementSizeInBytes_);
+        Buffer.MemoryCopy(At(src), At(dst), ElementSizeInBytes, ElementSizeInBytes);
     }
 
 //    public delegate void LoopDelegate<T>(ref T obj) where T : unmanaged;
@@ -272,14 +272,14 @@ public unsafe class ArchetypePool
 //    private UnmanagedCollection<ulong> ids_;
     private Dictionary<Flags, UntypedBuffer> componentPools_; //todo bench sparse
 
-    public ArchetypePool(Flags* flags, int[] sizes, int size)
+    public ArchetypePool(Flags* flags, int[] sizes)
     {
-        var allFlags = Flags.Join(flags, size);
+        var allFlags = Flags.Join(flags, sizes.Length);
 
         archetypeFlags_ = allFlags;
         componentPools_ = new Dictionary<Flags, UntypedBuffer>();
 
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < sizes.Length; i++)
             componentPools_.Add(flags[i], new UntypedBuffer(sizes[i], 4)); //todo change starting size
 
         Count = 0;
@@ -336,28 +336,21 @@ public unsafe class ArchetypePool
         Count--;
     }
 
-    public void CopyComponentsToPool(ArchetypePool newPool)
+    public void CopyComponentsToPool(uint oldPoolIndex, ArchetypePool newPool, uint newPoolIndex)
     {
-        foreach (var componentPool in componentPools_)
+        foreach (var pair in componentPools_)
         {
-            
+            var flag = pair.Key;
+            var oldBuffer = pair.Value;
+            var elSize = oldBuffer.ElementSizeInBytes;
+            var newBuffer = newPool.GetComponentBuffer(flag);
+            Buffer.MemoryCopy(
+                (void*)(oldBuffer.Data + ((int)oldPoolIndex * elSize)),
+                (void*)(newBuffer + ((int)newPool.Count * elSize)),
+                elSize, elSize);
         }
-//        foreach (Flags flag in separatedExistingComponentsFlags)
-//        {
-//            var oldBuffer = oldPool.GetComponentBuffer(flag);
-//            var elSize = registeredComponentsSizes_[flag.FirstPosition];
-//            var newBuffer = newPool.GetComponentBuffer(flag);
-//            Buffer.MemoryCopy(
-//                (void*)(oldBuffer + ((int)oldPoolIdx * elSize)),
-//                (void*)(newBuffer + ((int)newPool.Count * elSize)),
-//                elSize, elSize);
-//        }
     }
 
-//    public void AddId(ulong id)
-//    {
-//        ids_.Add(id);
-//    }
 }
 
 //public class ArchetypePool : ArchetypePoolBase
@@ -483,7 +476,7 @@ public class Registry
 
             for (int i = 0; i < matchingPool.Count; i++)
             {
-                loopAction(i, ref comp0buffer[i]);
+                loopAction(matchingPool., ref comp0buffer[i]);
             }
         }
     }
@@ -538,7 +531,7 @@ public class Registry
                 sizeof(T0),
             };
 
-            pool = new ArchetypePool(flags, sizes, 1);
+            pool = new ArchetypePool(flags, sizes);
             archetypePools_.Add(archetypeFlags, pool);
         }
 
@@ -573,7 +566,7 @@ public class Registry
                 sizeof(T1),
             };
 
-            pool = new ArchetypePool(flags, sizes, 2);
+            pool = new ArchetypePool(flags, sizes);
             archetypePools_.Add(archetypeFlags, pool);
         }
 
@@ -591,17 +584,17 @@ public class Registry
 
         //var separatedExistingComponentsFlags = entityData.ArchetypeFlags.Separate();
         var oldPool = archetypePools_[entityData.ArchetypeFlags];
-        var oldPoolIdx = entityData.IndexInBuffer;
+        var oldPoolIndex = entityData.IndexInBuffer;
 
         var newComponentFlag = GetComponentFlag<T>();
 
         if (entityData.ArchetypeFlags.Contains(newComponentFlag))
-            return;
+            throw new Exception("entity already has component");
 
         var newArchetypeFlags = Flags.Join(entityData.ArchetypeFlags, newComponentFlag);
 
-        ArchetypePool newPool;
-        if (!archetypePools_.TryGetValue(newArchetypeFlags, out newPool))
+        ArchetypePool newArchetypePool;
+        if (!archetypePools_.TryGetValue(newArchetypeFlags, out newArchetypePool))
         {
             var separatedArchetypesFlags = newArchetypeFlags.Separate();
 
@@ -610,15 +603,19 @@ public class Registry
             
             for (int i = 0; i < separatedArchetypesFlags.Count; i++)
             {
+                //todo get rid of registeredComponentsSizes_ and use sizes from oldPool and sizeof(T)
                 sizes[i] = registeredComponentsSizes_[separatedArchetypesFlags[i].FirstPosition];
                 flags[i] = separatedArchetypesFlags[i];
             }
 
-            newPool = new ArchetypePool(flags, sizes, separatedArchetypesFlags.Count);
-            archetypePools_.Add(newArchetypeFlags, newPool);
+            newArchetypePool = new ArchetypePool(flags, sizes);
+            archetypePools_.Add(newArchetypeFlags, newArchetypePool);
         }
 
-        newPool.AssureRoomForMore(1);
+        newArchetypePool.AssureRoomForMore(1);
+
+        oldPool.CopyComponentsToPool(oldPoolIndex, newArchetypePool, newArchetypePool.Count);
+        oldPool.Remove(oldPoolIndex);
 
         //copy data from old to new archetype pool
 //        foreach (Flags flag in separatedExistingComponentsFlags)
@@ -632,12 +629,11 @@ public class Registry
 //                elSize, elSize);
 //        }
 
-        var newCompBuffer = newPool.GetUntypedBuffer(newComponentFlag);
-        newCompBuffer.Set(ref comp, newPool.Count);
+        var newCompBuffer = newArchetypePool.GetUntypedBuffer(newComponentFlag);
+        newCompBuffer.Set(ref comp, newArchetypePool.Count);
 
-        newPool.Count++;
+        newArchetypePool.Count++;
 
-        oldPool.Remove(oldPoolIdx);
     }
 
 }
@@ -686,63 +682,6 @@ class Program
     static unsafe void Main(string[] args)
     {
 
-
-        const int V = 10;
-        var keys = new Flags[V];
-        for (int i = 0; i < V; i++)
-            keys[i] = new Flags(i);
-        var mDict = new MiniDict<Flags, int>(keys);
-
-        var nDict = new Dictionary<Flags, int>(V);
-
-
-        for (int i = 0; i < V; i++)
-        {
-            mDict[new Flags(i)] = i;
-        }
-
-        for (int i = 0; i < V; i++)
-        {
-            nDict[new Flags(i)] = i;
-        }
-
-        var sw = Stopwatch.StartNew();
-        const int V1 = 0xfffff;
-        for (int i1 = 0; i1 < V1; i1++)
-        for (int i = 0; i < V; i++)
-        {
-            mDict[new Flags(i)]++;
-        }
-        Console.WriteLine("m "+sw.ElapsedMilliseconds);
-
-        sw.Restart();
-        for (int i1 = 0; i1 < V1; i1++)
-        for (int i = 0; i < V; i++)
-        {
-            nDict[new Flags(i)]++;
-        }
-        Console.WriteLine(sw.ElapsedMilliseconds);
-
-        sw.Restart();
-        for (int i1 = 0; i1 < V1; i1++)
-        for (int i = 0; i < V; i++)
-        {
-            mDict[new Flags(i)]++;
-        }
-        Console.WriteLine("m "+sw.ElapsedMilliseconds);
-
-        sw.Restart();
-        for (int i1 = 0; i1 < V1; i1++)
-        for (int i = 0; i < V; i++)
-        {
-            nDict[new Flags(i)]++;
-        }
-        Console.WriteLine(sw.ElapsedMilliseconds);
-
-        Console.ReadKey();
-        return;
-
-
 //        var utb = UntypedBuffer.CreateForType<Position>(4);
 //
 //        utb.Add(new Position(1,2));
@@ -772,12 +711,13 @@ class Program
         var pe = reg.CreateEntity(new Position(1,2));
         reg.AddComponent(pe, new Velocity(3,4));
 
-//        reg.CreateEntity( new Velocity(9,8));
+        reg.CreateEntity( new Velocity(9,8));
+        reg.CreateEntity( new Position(19,18));
 //        
 //        var entity = reg.CreateEntity(new Position(1, 2), new Velocity(9, 8));
 //        reg.AddComponent(entity, new Name());
 
-//        reg.CreateEntity(new Position(11, 21), new Velocity(91, 81));
+        reg.CreateEntity(new Position(11, 21), new Velocity(91, 81));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
 //        reg.CreateEntity(new Position(12, 22), new Velocity(92, 82));
@@ -810,5 +750,66 @@ class Program
 
         Console.ReadKey();
 
+    }
+
+    private static void StressMiniDict()
+    {
+        const int V = 20;
+        var keys = new Flags[V];
+        for (int i = 0; i < V; i++)
+            keys[i] = new Flags(i);
+        var mDict = new MiniDict<Flags, int>(keys);
+
+        var nDict = new Dictionary<Flags, int>(V);
+
+
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)] = i;
+        }
+
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)] = i;
+        }
+
+        var sw = Stopwatch.StartNew();
+        const int V1 = 0xfffff;
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)]++;
+        }
+
+        Console.WriteLine("m " + sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)]++;
+        }
+
+        Console.WriteLine(sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            mDict[new Flags(i)]++;
+        }
+
+        Console.WriteLine("m " + sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        for (int i1 = 0; i1 < V1; i1++)
+        for (int i = 0; i < V; i++)
+        {
+            nDict[new Flags(i)]++;
+        }
+
+        Console.WriteLine(sw.ElapsedMilliseconds);
+
+        Console.ReadKey();
     }
 }
