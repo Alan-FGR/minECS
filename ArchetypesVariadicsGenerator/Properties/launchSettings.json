@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ArchetypesVariadicsGenerator": {
+      "commandName": "Project",
+      "workingDirectory": ".."
+    }
+  }
+}

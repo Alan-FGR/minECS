@@ -131,15 +131,15 @@ class Program
         for (int i = 0; i < entityCount; i+=(xorshift(5) + 1)) indices5.Add(i);
         for (int i = 0; i < entityCount; i+=(xorshift(6) + 1)) indices6.Add(i);
 
-//        if (randomComponents)
-//        {
-//            xorshuffle(indices1);
-//            xorshuffle(indices2);
-//            xorshuffle(indices3);
-//            xorshuffle(indices4);
-//            xorshuffle(indices5);
-//            xorshuffle(indices6);
-//        }
+        if (randomComponents)
+        {
+            xorshuffle(indices1);
+            xorshuffle(indices2);
+            xorshuffle(indices3);
+            xorshuffle(indices4);
+            xorshuffle(indices5);
+            xorshuffle(indices6);
+        }
 
 
         //lr($"added entities", registry);
@@ -206,6 +206,9 @@ class Program
 
     static unsafe void Main(string[] args)
     {
+        Benchmark(100000, false);
+        state = 42;
+        Benchmark(100000, false);
         Benchmark(100000, false);
         Benchmark(100000, false);
         Benchmark(100000, false);

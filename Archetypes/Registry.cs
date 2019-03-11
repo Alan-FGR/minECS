@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
-public class Registry
+public partial class Registry
 {
     private ConcurrentDictionary<ulong, EntityData> UIDsToEntityDatas = new ConcurrentDictionary<ulong, EntityData>();
     private Dictionary<Flags, ArchetypePool> archetypePools_;
@@ -52,19 +52,21 @@ public class Registry
             "This probably means you need more bits in your flag type.");
     }
 
-    public delegate void LoopDelegate<T0>(EntityData entityData, ref T0 component0);
+    #region Variadic 16
 
-    public delegate void LoopDelegate<T0, T1>(EntityData entityData, ref T0 component0, ref T1 component1);
+    public delegate void LoopDelegate<T0>(EntityData entityData, ref T0 component0); // genvariadic delegate
 
-    public unsafe void Loop<T0>(LoopDelegate<T0> loopAction)
-        where T0 : unmanaged
+    public unsafe void Loop<T0>(LoopDelegate<T0> loopAction) // genvariadic function 8
+        where T0 : unmanaged // genvariadic duplicate
     {
         var flags = stackalloc Flags[]
         {
-            GetComponentFlag<T0>(),
+            GetComponentFlag<T0>() // genvariadic duplicate ,
         };
 
-        Flags archetypeFlags = Flags.Join(flags, 1);
+        var typeQty = 1; // genvariadic quantity
+
+        Flags archetypeFlags = Flags.Join(flags, typeQty);
 
         var matchingPools = new List<KeyValuePair<Flags, ArchetypePool>>();
 
@@ -75,45 +77,18 @@ public class Registry
         //loop all pools and entities (todo MT)
         foreach (var matchingPool in matchingPools)
         {
-            var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
+            var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]); // genvariadic duplicate
 
             for (int i = 0; i < matchingPool.Value.Count; i++)
             {
-                loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i]);
+                loopAction(new EntityData(matchingPool.Key, i),
+                    ref comp0buffer[i] // genvariadic duplicate ,
+                    );
             }
         }
     }
 
-    public unsafe void Loop<T0, T1>(LoopDelegate<T0, T1> loopAction)
-        where T0 : unmanaged
-        where T1 : unmanaged
-    {
-        var flags = stackalloc Flags[]
-        {
-            GetComponentFlag<T0>(),
-            GetComponentFlag<T1>(),
-        };
-
-        Flags archetypeFlags = Flags.Join(flags, 2);
-
-        var matchingPools = new List<KeyValuePair<Flags, ArchetypePool>>();
-
-        foreach (var pools in archetypePools_)
-            if (pools.Key.Contains(archetypeFlags))
-                matchingPools.Add(pools);
-
-        //loop all pools and entities (todo MT)
-        foreach (var matchingPool in matchingPools)
-        {
-            var comp0buffer = matchingPool.Value.GetComponentBuffer<T0>(flags[0]);
-            var comp1buffer = matchingPool.Value.GetComponentBuffer<T1>(flags[1]);
-
-            for (int i = 0; i < matchingPool.Value.Count; i++)
-            {
-                loopAction(new EntityData(matchingPool.Key, i), ref comp0buffer[i], ref comp1buffer[i]);
-            }
-        }
-    }
+    #endregion
 
     public unsafe ulong CreateEntity()
     {
