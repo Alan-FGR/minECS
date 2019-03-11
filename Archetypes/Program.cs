@@ -188,20 +188,20 @@ class Program
         registry.Loop((EntityData index, ref Int5 int5, ref Int6 int6) => { int6.x = int5.x; });
         Measure("Propagated x to Int6");
 
-//        registry.Loop((int index, ref Int2 int2, ref Int3 int3, ref Int4 int4) => { int3.y = int2.y; int4.y = int3.y; });
-//        Measure("Propagated y to Int3 and Int4");
-//        registry.Loop((int index, ref Int3 int3, ref Int4 int4, ref Int5 int5) => { int4.y = int3.y; int5.y = int4.y; });
-//        Measure("Propagated y to Int4 and Int5");
-//        registry.Loop((int index, ref Int4 int4, ref Int5 int5, ref Int6 int6) => { int5.y = int4.y; int6.y = int5.y; });
-//        Measure("Propagated y to Int5 and Int6");
-//
-//        ulong checkSum = 0;
-//        registry.Loop((int index, ref Int6 int6) =>
-//        {
-//            checkSum ^= (ulong) (int6.x + int6.y);
-//        });
-//
-//        Console.WriteLine($"checksum: {checkSum}");
+        registry.Loop((EntityData index, ref Int2 int2, ref Int3 int3, ref Int4 int4) => { int3.y = int2.y; int4.y = int3.y; });
+        Measure("Propagated y to Int3 and Int4");
+        registry.Loop((EntityData index, ref Int3 int3, ref Int4 int4, ref Int5 int5) => { int4.y = int3.y; int5.y = int4.y; });
+        Measure("Propagated y to Int4 and Int5");
+        registry.Loop((EntityData index, ref Int4 int4, ref Int5 int5, ref Int6 int6) => { int5.y = int4.y; int6.y = int5.y; });
+        Measure("Propagated y to Int5 and Int6");
+
+        ulong checkSum = 0;
+        registry.Loop((EntityData index, ref Int6 int6) =>
+        {
+            checkSum ^= (ulong) (int6.x + int6.y);
+        });
+
+        Console.WriteLine($"checksum: {checkSum}");
     }
 
     static unsafe void Main(string[] args)
@@ -210,8 +210,8 @@ class Program
         state = 42;
         Benchmark(100000, false);
         Benchmark(100000, false);
-        Benchmark(100000, false);
-        Benchmark(100000, false);
+        Benchmark(100000, true);
+        Benchmark(100000, true);
         return;
         
         reg = new Registry();
