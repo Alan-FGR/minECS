@@ -56,7 +56,7 @@ public partial class Registry
 
     public delegate void LoopDelegate<T0>(EntityData entityData, ref T0 component0); // genvariadic delegate
 
-    public unsafe void Loop<T0>(LoopDelegate<T0> loopAction) // genvariadic function 8
+    public unsafe void Loop<T0>(LoopDelegate<T0> loopAction) // genvariadic function
         where T0 : unmanaged // genvariadic duplicate
     {
         var flags = stackalloc Flags[]
