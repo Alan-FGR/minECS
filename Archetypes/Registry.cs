@@ -13,9 +13,11 @@ public class Registry
 
     private ulong curUID = 0;
 
-    public Registry()
+    public unsafe Registry()
     {
         archetypePools_ = new Dictionary<Flags, ArchetypePool>();
+        var noFlags = (Flags*)0;
+        archetypePools_.Add(0,new ArchetypePool(noFlags, new int[0]));
     }
 
     public int GetComponentFlagPosition<T>() where T : unmanaged
@@ -113,6 +115,21 @@ public class Registry
         }
     }
 
+    public unsafe ulong CreateEntity()
+    {
+        var noFlags = (Flags*)0;
+
+        ArchetypePool pool = archetypePools_[0];
+
+        var newId = curUID;
+
+        int archetypePoolIndex = pool.Add(newId, noFlags);
+
+        UIDsToEntityDatas.TryAdd(newId, new EntityData(0, archetypePoolIndex));
+        curUID++;
+        return newId;
+    }
+
     public unsafe ulong CreateEntity<T0>(
         T0 component0)
         where T0 : unmanaged
@@ -184,8 +201,7 @@ public class Registry
     public unsafe void AddComponent<T>(ulong entityUID, T comp) where T : unmanaged
     {
         var entityData = UIDsToEntityDatas[entityUID];
-
-        //var separatedExistingComponentsFlags = entityData.ArchetypeFlags.Separate();
+        
         var oldPool = archetypePools_[entityData.ArchetypeFlags];
         var indexInOldPool = entityData.IndexInPool;
 
@@ -215,17 +231,21 @@ public class Registry
             archetypePools_.Add(newArchetypeFlags, newArchetypePool);
         }
 
-        var indexInNewPool = oldPool.ChangePoolAndCompleteArchetype(indexInOldPool, newArchetypePool, newComponentFlag, ref comp);
+        var newData = oldPool.ChangePoolAndCompleteArchetype(
+            indexInOldPool, newArchetypePool, newComponentFlag, ref comp);
 
-        UIDsToEntityDatas[entityUID] = new EntityData(newArchetypeFlags, indexInNewPool);
+        UIDsToEntityDatas[newData.replacerUID] = new EntityData(entityData.ArchetypeFlags, indexInOldPool);
+        UIDsToEntityDatas[entityUID] = new EntityData(newArchetypeFlags, newData.newIndex);
 
     }
 
     public void DestroyEntity(ulong entityUID)
     {
-        var entityData = UIDsToEntityDatas[entityUID];
-        ArchetypePool pool = archetypePools_[entityData.ArchetypeFlags];
-        pool.Remove(entityData.IndexInPool);
+        var dsEntityData = UIDsToEntityDatas[entityUID];
+        ArchetypePool pool = archetypePools_[dsEntityData.ArchetypeFlags];
+        var replacerUID = pool.Remove(dsEntityData.IndexInPool);
+        UIDsToEntityDatas[replacerUID] = dsEntityData;
+        UIDsToEntityDatas.TryRemove(entityUID, out EntityData outEntityData);
     }
 
     public void PrintDebugData()

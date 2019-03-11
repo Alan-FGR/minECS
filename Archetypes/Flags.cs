@@ -40,8 +40,10 @@ public struct Flags : IEquatable<Flags>
 
     public static unsafe Flags Join(Flags* flags, int size)
     {
-        ulong bits = flags[0].bits_;
-        for (var i = 1; i < size; i++)
+//        ulong bits = flags[0].bits_;
+//        for (var i = 1; i < size; i++)
+        ulong bits = 0;
+        for (var i = 0; i < size; i++)
             bits |= flags[i].bits_;
         return bits;
     }
@@ -61,7 +63,7 @@ public struct Flags : IEquatable<Flags>
 
     public override string ToString()
     {
-        return $"FLG ...{Convert.ToString((long)bits_, 2).PadLeft(8, '0')}";
+        return $"FLG {Convert.ToString((long)bits_, 2).PadLeft(8, '0')}";
     }
 
     public bool Equals(Flags other)

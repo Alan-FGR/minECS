@@ -48,6 +48,14 @@ public unsafe class ArchetypePool
             componentPool.Value.AssureRoomForMore(Count, quantity);
     }
     
+    public int Add(ulong UID, Flags* flags)
+    {
+        indicesToUIDs_.Add(UID);
+
+        Count++;
+        return Count - 1;
+    }
+
     public int Add<T0>(ulong UID, Flags* flags, T0 t0)
         where T0 : unmanaged
     {
@@ -81,15 +89,19 @@ public unsafe class ArchetypePool
         return Count - 1;
     }
 
-    public void Remove(int index)
+    public ulong Remove(int index)
     {
         foreach (var componentPool in componentBuffers_)
             componentPool.Value.CopyElement(Count - 1, index);
 
-        indicesToUIDs_[index] = indicesToUIDs_[indicesToUIDs_.Count - 1];
-        indicesToUIDs_.RemoveAt(indicesToUIDs_.Count - 1);
+        int last = indicesToUIDs_.Count - 1;
+        var replacerUID = indicesToUIDs_[last];
+        indicesToUIDs_[index] = replacerUID;
+        indicesToUIDs_.RemoveAt(last);
 
         Count--;
+
+        return replacerUID;
     }
 
     private void CopyComponentsTo(int oldPoolIndex, ArchetypePool newPool, int newPoolIndex)
@@ -107,7 +119,7 @@ public unsafe class ArchetypePool
         }
     }
 
-    public int ChangePoolAndCompleteArchetype<T>(int index, ArchetypePool newPool, Flags newCompFlag, ref T newComp)
+    public (int newIndex, ulong replacerUID) ChangePoolAndCompleteArchetype<T>(int index, ArchetypePool newPool, Flags newCompFlag, ref T newComp)
         where T : unmanaged
     {
         newPool.AssureRoomForMore(1);
@@ -116,12 +128,12 @@ public unsafe class ArchetypePool
 
         var newCompBuffer = newPool.componentBuffers_[newCompFlag];
         newCompBuffer.Set(ref newComp, newPool.Count);
-
+        
         newPool.indicesToUIDs_.Add(indicesToUIDs_[index]);
         newPool.Count++;
 
-        Remove(index);
-        return newPool.Count - 1;
+        var replacerUID = Remove(index);
+        return (newPool.Count - 1, replacerUID);
     }
 
     public void PrintDebugData(Type[] typeMap)
