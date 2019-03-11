@@ -65,7 +65,6 @@ public partial class Registry
         };
 
         var typeQty = 1; // genvariadic quantity
-
         Flags archetypeFlags = Flags.Join(flags, typeQty);
 
         var matchingPools = new List<KeyValuePair<Flags, ArchetypePool>>();
@@ -88,6 +87,40 @@ public partial class Registry
         }
     }
 
+    public unsafe ulong CreateEntity<T0>(T0 component0) // genvariadic function
+        where T0 : unmanaged // genvariadic duplicate
+    {
+        var flags = stackalloc Flags[]
+        {
+            GetComponentFlag<T0>() // genvariadic duplicate ,
+        };
+
+        var typeQty = 1; // genvariadic quantity
+        Flags archetypeFlags = Flags.Join(flags, typeQty);
+
+        ArchetypePool pool;
+        if (!archetypePools_.TryGetValue(archetypeFlags, out pool))
+        {
+            var sizes = new[]
+            {
+                sizeof(T0) // genvariadic duplicate ,
+            };
+
+            pool = new ArchetypePool(flags, sizes);
+            archetypePools_.Add(archetypeFlags, pool);
+        }
+
+        var newId = curUID;
+
+        int archetypePoolIndex = pool.Add(newId, flags,
+            component0 // genvariadic duplicate ,
+            );
+
+        UIDsToEntityDatas.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
+        curUID++;
+        return newId;
+    }
+
     #endregion
 
     public unsafe ulong CreateEntity()
@@ -101,74 +134,6 @@ public partial class Registry
         int archetypePoolIndex = pool.Add(newId, noFlags);
 
         UIDsToEntityDatas.TryAdd(newId, new EntityData(0, archetypePoolIndex));
-        curUID++;
-        return newId;
-    }
-
-    public unsafe ulong CreateEntity<T0>(
-        T0 component0)
-        where T0 : unmanaged
-    {
-        var flags = stackalloc Flags[]
-        {
-            GetComponentFlag<T0>(),
-        };
-
-        Flags archetypeFlags = Flags.Join(flags, 1);
-
-        ArchetypePool pool;
-        if (!archetypePools_.TryGetValue(archetypeFlags, out pool))
-        {
-            var sizes = new[]
-            {
-                sizeof(T0),
-            };
-
-            pool = new ArchetypePool(flags, sizes);
-            archetypePools_.Add(archetypeFlags, pool);
-        }
-
-        var newId = curUID;
-
-        int archetypePoolIndex = pool.Add(newId, flags, component0);
-
-        UIDsToEntityDatas.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
-        curUID++;
-        return newId;
-    }
-
-    public unsafe ulong CreateEntity<T0, T1>(
-        T0 component0,
-        T1 component1)
-        where T0 : unmanaged
-        where T1 : unmanaged
-    {
-        var flags = stackalloc Flags[]
-        {
-            GetComponentFlag<T0>(),
-            GetComponentFlag<T1>(),
-        };
-
-        Flags archetypeFlags = Flags.Join(flags, 2);
-
-        ArchetypePool pool;
-        if (!archetypePools_.TryGetValue(archetypeFlags, out pool))
-        {
-            var sizes = new[]
-            {
-                sizeof(T0),
-                sizeof(T1),
-            };
-
-            pool = new ArchetypePool(flags, sizes);
-            archetypePools_.Add(archetypeFlags, pool);
-        }
-
-        var newId = curUID;
-
-        int archetypePoolIndex = pool.Add(newId, flags, component0, component1);
-
-        UIDsToEntityDatas.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
         curUID++;
         return newId;
     }

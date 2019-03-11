@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-public unsafe class ArchetypePool
+public unsafe partial class ArchetypePool
 {
     private Flags archetypeFlags_;
     public int Count { get; private set; }
@@ -56,38 +56,24 @@ public unsafe class ArchetypePool
         return Count - 1;
     }
 
-    public int Add<T0>(ulong UID, Flags* flags, T0 t0)
-        where T0 : unmanaged
+    #region Variadic 16
+
+    public int Add<T0>(ulong UID, Flags* flags, T0 t0) // genvariadic function
+        where T0 : unmanaged // genvariadic duplicate
     {
-        var p0 = componentBuffers_[flags[0]];
-        
-        p0.AssureRoomForMore(Count, 1);
-        p0.Set(ref t0, Count);
+        var p0 = componentBuffers_[flags[0]]; // genvariadic duplicate
+
+        var one = 1;
+        p0.AssureRoomForMore(Count, one); // genvariadic duplicate
+        p0.Set(ref t0, Count); // genvariadic duplicate
 
         indicesToUIDs_.Add(UID);
 
         Count++;
         return Count - 1;
     }
-    
-    public int Add<T0, T1>(ulong UID, Flags* flags, T0 t0, T1 t1)
-        where T0 : unmanaged
-        where T1 : unmanaged
-    {
-        var p0 = componentBuffers_[flags[0]];
-        var p1 = componentBuffers_[flags[1]];
-        
-        p0.AssureRoomForMore(Count, 1);
-        p0.Set(ref t0, Count);
-        
-        p1.AssureRoomForMore(Count, 1);
-        p1.Set(ref t1, Count);
 
-        indicesToUIDs_.Add(UID);
-        
-        Count++;
-        return Count - 1;
-    }
+    #endregion
 
     public ulong Remove(int index)
     {

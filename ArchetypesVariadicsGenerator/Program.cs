@@ -129,7 +129,7 @@ class Program
 
     static void Main(string[] args)
     {
-        String[] files = {"Registry"};
+        String[] files = {"Registry", "ArchetypePool"};
         string path = "Archetypes";
 
         Console.WriteLine("C# VARIADIC GENERATOR. VALID TAGS:");
@@ -242,7 +242,7 @@ class Program
                         allcode += line+"\r\n";
             }
 
-            allcode += $"public partial class {Path.GetFileNameWithoutExtension(file)} {{";
+            allcode += $"public unsafe partial class {Path.GetFileNameWithoutExtension(file)} {{";
 
             allcode += generatedCode.ToString();
 
