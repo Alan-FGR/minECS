@@ -7,17 +7,17 @@ public unsafe partial class ArchetypePool
     public int Count { get; private set; }
 
     private List<ulong> indicesToUIDs_ = new List<ulong>();
-    private Dictionary<Flags, UntypedBuffer> componentBuffers_; //todo bench sparse
+    private MiniDict<Flags, UntypedBuffer> componentBuffers_;
 
     public ArchetypePool(Flags* flags, int[] sizes)
     {
         var allFlags = Flags.Join(flags, sizes.Length);
 
         archetypeFlags_ = allFlags;
-        componentBuffers_ = new Dictionary<Flags, UntypedBuffer>();
+        componentBuffers_ = new MiniDict<Flags, UntypedBuffer>(flags, sizes.Length);
 
         for (int i = 0; i < sizes.Length; i++)
-            componentBuffers_.Add(flags[i], new UntypedBuffer(sizes[i], 4)); //todo change starting size
+            componentBuffers_[flags[i]] = new UntypedBuffer(sizes[i], 4);//todo change starting size
 
         Count = 0;
     }
@@ -44,8 +44,8 @@ public unsafe partial class ArchetypePool
 
     public void AssureRoomForMore(int quantity)
     {
-        foreach (var componentPool in componentBuffers_)
-            componentPool.Value.AssureRoomForMore(Count, quantity);
+        foreach (var buffer in componentBuffers_.Values)
+            buffer.AssureRoomForMore(Count, quantity);
     }
     
     public int Add(ulong UID, Flags* flags)
@@ -77,8 +77,8 @@ public unsafe partial class ArchetypePool
 
     public ulong Remove(int index)
     {
-        foreach (var componentPool in componentBuffers_)
-            componentPool.Value.CopyElement(Count - 1, index);
+        foreach (UntypedBuffer buffer in componentBuffers_.Values)
+            buffer.CopyElement(Count - 1, index);
 
         int last = indicesToUIDs_.Count - 1;
         var replacerUID = indicesToUIDs_[last];
@@ -92,10 +92,13 @@ public unsafe partial class ArchetypePool
 
     private void CopyComponentsTo(int oldPoolIndex, ArchetypePool newPool, int newPoolIndex)
     {
-        foreach (var pair in componentBuffers_)
+        var count = componentBuffers_.Count;
+        var values = componentBuffers_.Values;
+        var keys = componentBuffers_.KeysPtr;
+        for (int i = 0; i < count; i++)
         {
-            var flag = pair.Key;
-            var oldBuffer = pair.Value;
+            var flag = keys[i];
+            var oldBuffer = values[i];
             var elSize = oldBuffer.ElementSizeInBytes;
             var newBuffer = newPool.GetComponentBuffer(flag);
             Buffer.MemoryCopy(
@@ -110,25 +113,26 @@ public unsafe partial class ArchetypePool
     {
         newPool.AssureRoomForMore(1);
 
-        CopyComponentsTo(index, newPool, newPool.Count);
+        var count = newPool.Count;
+        CopyComponentsTo(index, newPool, count);
 
         var newCompBuffer = newPool.componentBuffers_[newCompFlag];
-        newCompBuffer.Set(ref newComp, newPool.Count);
+        newCompBuffer.Set(ref newComp, count);
         
         newPool.indicesToUIDs_.Add(indicesToUIDs_[index]);
-        newPool.Count++;
+        newPool.Count = count+1;
 
         var replacerUID = Remove(index);
-        return (newPool.Count - 1, replacerUID);
+        return (count, replacerUID);
     }
 
     public void PrintDebugData(Type[] typeMap)
     {
         List<Type> archetypeTypes = new List<Type>();
 
-        foreach (var pair in componentBuffers_)
+        for (int i = 0; i < componentBuffers_.Count; i++)
         {
-            var type = typeMap[pair.Key.FirstPosition];
+            var type = typeMap[componentBuffers_.KeysPtr[i].FirstPosition];
             archetypeTypes.Add(type);
         }
 
@@ -137,12 +141,11 @@ public unsafe partial class ArchetypePool
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"   ind2uid={string.Join(", ", indicesToUIDs_)}");
 
-        foreach (var pair in componentBuffers_)
+        for (int i = 0; i < componentBuffers_.Count; i++)
         {
-            var type = typeMap[pair.Key.FirstPosition];
-            pair.Value.PrintDebugData(Count, type);
-        }
-
+            var type = typeMap[componentBuffers_.KeysPtr[i].FirstPosition];
+            componentBuffers_.Values[i].PrintDebugData(Count, type);
+        };
     }
 
 }

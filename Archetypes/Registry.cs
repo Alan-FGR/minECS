@@ -22,7 +22,8 @@ public partial class Registry
 
     public int GetComponentFlagPosition<T>() where T : unmanaged
     {
-        for (int i = 0; i < registeredComponents_.Length; i++)
+        var length = registeredComponents_.Length;
+        for (int i = 0; i < length; i++)
             if (typeof(T) == registeredComponents_[i])
                 return i;
         throw new AccessViolationException(
@@ -157,10 +158,11 @@ public partial class Registry
         {
             var separatedArchetypesFlags = newArchetypeFlags.Separate();
 
-            Flags* flags = stackalloc Flags[separatedArchetypesFlags.Count];
-            var sizes = new int[separatedArchetypesFlags.Count];
+            int flagCount = separatedArchetypesFlags.Count;
+            Flags* flags = stackalloc Flags[flagCount];
+            var sizes = new int[flagCount];
             
-            for (int i = 0; i < separatedArchetypesFlags.Count; i++)
+            for (int i = 0; i < flagCount; i++)
             {
                 //todo get rid of registeredComponentsSizes_ and use sizes from oldPool and sizeof(T)
                 sizes[i] = registeredComponentsSizes_[separatedArchetypesFlags[i].FirstPosition];

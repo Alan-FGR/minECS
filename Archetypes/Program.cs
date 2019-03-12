@@ -212,6 +212,7 @@ class Program
         Benchmark(100000, false);
         Benchmark(100000, true);
         Benchmark(100000, true);
+        //Console.ReadKey();
         return;
         
         reg = new Registry();
