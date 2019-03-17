@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 
 struct Int1
@@ -86,8 +87,10 @@ class Program
 
     static Stopwatch sw = new Stopwatch();
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void Measure(string previousMeasurement = null)
     {
+        sw.Stop();
         if (previousMeasurement != null) Console.WriteLine($"{sw.Elapsed.TotalMilliseconds:00.00} ms {previousMeasurement}");
         sw.Restart();
     }
