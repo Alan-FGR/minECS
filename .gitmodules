@@ -7,3 +7,6 @@
 [submodule "UnmanagedCollection"]
 	path = UnmanagedCollection
 	url = https://github.com/Alan-FGR/UnmanagedCollection
+[submodule "FNA"]
+	path = FNA
+	url = https://github.com/FNA-XNA/FNA.git

@@ -2,22 +2,58 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+
+public struct ThreadSafeCounter
+{
+    private long count_;
+
+    public long ReadAndIncrement()
+    {
+        return Interlocked.Increment(ref count_)-1;
+    }
+
+    public long IncrementAndRead()
+    {
+        return Interlocked.Increment(ref count_);
+    }
+
+    public void Increment()
+    {
+        Interlocked.Increment(ref count_);
+    }
+
+    public void Decrement()
+    {
+        Interlocked.Decrement(ref count_);
+    }
+
+    public long Read()
+    {
+        return Interlocked.Read(ref count_);
+    }
+
+    public int ReadInt()
+    {
+        return (int)Interlocked.Read(ref count_);
+    }
+}
 
 public partial class Registry
 {
-    private ConcurrentDictionary<ulong, EntityData> UIDsToEntityDatas = new ConcurrentDictionary<ulong, EntityData>();
-    private Dictionary<Flags, ArchetypePool> archetypePools_;
+    private readonly ConcurrentDictionary<ulong, EntityData> UIDsToEntityDatas = new ConcurrentDictionary<ulong, EntityData>();
+    private readonly ConcurrentDictionary<Flags, ArchetypePool> archetypePools_;
 
-    private Type[] registeredComponents_ = new Type[Flags.MaxQuantity]; //index is the component flag
-    private int[] registeredComponentsSizes_ = new int[Flags.MaxQuantity];
+    private readonly Type[] registeredComponents_ = new Type[Flags.MaxQuantity]; //index is the component flag
+    private readonly int[] registeredComponentsSizes_ = new int[Flags.MaxQuantity];
 
-    private ulong curUID = 0;
+    private ThreadSafeCounter curUID;
 
     public unsafe Registry()
     {
-        archetypePools_ = new Dictionary<Flags, ArchetypePool>();
+        archetypePools_ = new ConcurrentDictionary<Flags, ArchetypePool>();
         var noFlags = (Flags*)0;
-        archetypePools_.Add(0,new ArchetypePool(noFlags, new int[0]));
+        archetypePools_.TryAdd(0,new ArchetypePool(noFlags, new int[0]));
     }
 
     public int GetComponentFlagPosition<T>() where T : unmanaged
@@ -111,14 +147,14 @@ public partial class Registry
             archetypePools_.Add(archetypeFlags, pool);
         }
 
-        var newId = curUID;
+        var newId = curUID.Read();
 
         int archetypePoolIndex = pool.Add(newId, flags,
             component0 // genvariadic duplicate ,
             );
 
         UIDsToEntityDatas.TryAdd(newId, new EntityData(archetypeFlags, archetypePoolIndex));
-        curUID++;
+        curUID.Increment();
         return newId;
     }
 
@@ -135,7 +171,7 @@ public partial class Registry
         int archetypePoolIndex = pool.Add(newId, noFlags);
 
         UIDsToEntityDatas.TryAdd(newId, new EntityData(0, archetypePoolIndex));
-        curUID++;
+        curUID.Increment();
         return newId;
     }
 

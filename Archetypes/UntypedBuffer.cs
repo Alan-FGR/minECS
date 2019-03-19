@@ -9,12 +9,10 @@ public unsafe class UntypedBuffer
     private IntPtr unalignedPtr_ = IntPtr.Zero;
     private IntPtr buffer_ = IntPtr.Zero;
     public IntPtr Data => buffer_;
-
-    #if DEBUG
-    readonly 
-    #endif
-    public int ElementSizeInBytes;
+    
     private int bufferSizeInBytes_;
+
+    public readonly int ElementSizeInBytes;
 
 //    private void* End => (void*)(buffer_ + bufferSizeInBytes_);
 //    private void* Last => (void*)(buffer_ + (bufferSizeInBytes_ - elementSizeInBytes_));

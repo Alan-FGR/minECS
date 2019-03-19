@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Archetypes\Archetypes.csproj" />
     <ProjectReference Include="..\FNA\FNA.Core.csproj" />
-    <ProjectReference Include="..\minECS\minECS.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,7 +23,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
+  
   <ItemGroup>
     <None Include="..\deps\x64\FAudio.dll" Link="FAudio.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -41,9 +41,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-  <!-- <ItemGroup> -->
-  <!--   <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-26801-02" /> -->
-  <!-- </ItemGroup> -->
 
 </Project>
