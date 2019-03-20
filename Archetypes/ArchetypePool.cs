@@ -1,21 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 
 public unsafe partial class ArchetypePool
 {
-    private readonly Flags archetypeFlags_;
+    private Flags archetypeFlags_;
+    public int Count { get; private set; }
 
-    public SyncedData Synced;
-    public struct SyncedData
-    {
-        public SpinLock Lock;
-
-        public int Count { get; internal set; }
-        public List<long> IndicesToUIDs { get; internal set; }
-    }
-    
-    private readonly MiniDict<Flags, UntypedBuffer> componentBuffers_;
+    private List<ulong> indicesToUIDs_ = new List<ulong>();
+    private MiniDict<Flags, UntypedBuffer> componentBuffers_;
 
     public ArchetypePool(Flags* flags, int[] sizes)
     {
@@ -27,8 +19,7 @@ public unsafe partial class ArchetypePool
         for (int i = 0; i < sizes.Length; i++)
             componentBuffers_[flags[i]] = new UntypedBuffer(sizes[i], 4);//todo change starting size
 
-        Synced.Count = 0;
-        Synced.IndicesToUIDs = new List<long>();
+        Count = 0;
     }
 
     public bool HasComponents(Flags flags)
@@ -54,47 +45,47 @@ public unsafe partial class ArchetypePool
     public void AssureRoomForMore(int quantity)
     {
         foreach (var buffer in componentBuffers_.Values)
-            buffer.AssureRoomForMore(Synced.Count, quantity);
+            buffer.AssureRoomForMore(Count, quantity);
     }
     
-    public int Add(long UID, Flags* flags)
+    public int Add(ulong UID, Flags* flags)
     {
-        Synced.IndicesToUIDs.Add(UID);
+        indicesToUIDs_.Add(UID);
 
-        Synced.Count++;
-        return Synced.Count - 1;
+        Count++;
+        return Count - 1;
     }
 
     #region Variadic 16
 
-    public int Add<T0>(long UID, Flags* flags, T0 t0) // genvariadic function
+    public int Add<T0>(ulong UID, Flags* flags, T0 t0) // genvariadic function
         where T0 : unmanaged // genvariadic duplicate
     {
         var p0 = componentBuffers_[flags[0]]; // genvariadic duplicate
 
         var one = 1;
-        p0.AssureRoomForMore(Synced.Count, one); // genvariadic duplicate
-        p0.Set(ref t0, Synced.Count); // genvariadic duplicate
+        p0.AssureRoomForMore(Count, one); // genvariadic duplicate
+        p0.Set(ref t0, Count); // genvariadic duplicate
 
-        Synced.IndicesToUIDs.Add(UID);
+        indicesToUIDs_.Add(UID);
 
-        Synced.Count++;
-        return Synced.Count - 1;
+        Count++;
+        return Count - 1;
     }
 
     #endregion
 
-    public long Remove(int index)
+    public ulong Remove(int index)
     {
         foreach (UntypedBuffer buffer in componentBuffers_.Values)
-            buffer.CopyElement(Synced.Count - 1, index);
+            buffer.CopyElement(Count - 1, index);
 
-        int last = Synced.IndicesToUIDs.Count - 1;
-        var replacerUID = Synced.IndicesToUIDs[last];
-        Synced.IndicesToUIDs[index] = replacerUID;
-        Synced.IndicesToUIDs.RemoveAt(last);
+        int last = indicesToUIDs_.Count - 1;
+        var replacerUID = indicesToUIDs_[last];
+        indicesToUIDs_[index] = replacerUID;
+        indicesToUIDs_.RemoveAt(last);
 
-        Synced.Count--;
+        Count--;
 
         return replacerUID;
     }
@@ -112,24 +103,24 @@ public unsafe partial class ArchetypePool
             var newBuffer = newPool.GetComponentBuffer(flag);
             Buffer.MemoryCopy(
                 (void*)(oldBuffer.Data + (oldPoolIndex * elSize)),
-                (void*)(newBuffer + (newPool.Synced.Count * elSize)),
+                (void*)(newBuffer + (newPool.Count * elSize)),
                 elSize, elSize);
         }
     }
 
-    public (int newIndex, long replacerUID) ChangePoolAndCompleteArchetype<T>(int index, ArchetypePool newPool, Flags newCompFlag, ref T newComp)
+    public (int newIndex, ulong replacerUID) ChangePoolAndCompleteArchetype<T>(int index, ArchetypePool newPool, Flags newCompFlag, ref T newComp)
         where T : unmanaged
     {
         newPool.AssureRoomForMore(1);
 
-        var count = newPool.Synced.Count;
+        var count = newPool.Count;
         CopyComponentsTo(index, newPool, count);
 
         var newCompBuffer = newPool.componentBuffers_[newCompFlag];
         newCompBuffer.Set(ref newComp, count);
         
-        newPool.Synced.IndicesToUIDs.Add(Synced.IndicesToUIDs[index]);
-        newPool.Synced.Count = count+1;
+        newPool.indicesToUIDs_.Add(indicesToUIDs_[index]);
+        newPool.Count = count+1;
 
         var replacerUID = Remove(index);
         return (count, replacerUID);
@@ -146,15 +137,15 @@ public unsafe partial class ArchetypePool
         }
 
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  {GetType()}<{string.Join(", ", archetypeTypes)}>({Synced.Count}), {archetypeFlags_}");
+        Console.WriteLine($"  {GetType()}<{string.Join(", ", archetypeTypes)}>({Count}), {archetypeFlags_}");
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"   ind2uid={string.Join(", ", Synced.IndicesToUIDs)}");
+        Console.WriteLine($"   ind2uid={string.Join(", ", indicesToUIDs_)}");
 
         for (int i = 0; i < componentBuffers_.Count; i++)
         {
             var type = typeMap[componentBuffers_.KeysPtr[i].FirstPosition];
-            componentBuffers_.Values[i].PrintDebugData(Synced.Count, type);
-        }
+            componentBuffers_.Values[i].PrintDebugData(Count, type);
+        };
     }
 
 }
