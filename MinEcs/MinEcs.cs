@@ -9,6 +9,9 @@ Console.WriteLine("test");
 {
     var registry = new Registry();
 
+    ComponentTypeData.RegisterComponent<Position>();
+    ComponentTypeData.RegisterComponent<Velocity>();
+
     var entity = registry.CreateEntity(new Position(), new Velocity());
 
     registry.Loop((ref Position position, ref Velocity velocity) =>
@@ -38,42 +41,72 @@ public class ComponentAttribute : Attribute { }
 public class VariadicAttribute : Attribute { public byte Max; }
 
 
-[Component] public partial struct Position { public float x, y; }
+[Component]
+public struct Position
+{
+    public float x, y;
+}
 [Component] public readonly partial struct ReadOnlyPosition { public readonly float x, y; } // GEN?
 
 [Component]
-public partial struct Velocity
+public struct Velocity
 {
     public float x, y;
 }
 
-
-public static class ComponentMetaOps
-{
-    public static nuint ComponentTypeSize(this gComponentFlagType flag) => flag switch
-    {
-        Position.Metadata.Flag => (nuint)Unsafe.SizeOf<Position>(), // TODO codegen consts
-        Velocity.Metadata.Flag => (nuint)Unsafe.SizeOf<Velocity>(),
-        _ => throw new NotImplementedException()
-    };
-}
-
-public partial struct Position
+// TODO codegen at compile time
+public static class ComponentTypeData
 {
     public static class Metadata // TODO codegen this metadata
     {
-        public const gComponentFlagType Flag = 1 << 0;
+        public const int FlagPosition = 0;
+        public const gComponentFlagType Flag = 1 << FlagPosition;
+        //public const nuint Size = 0; // TODO codegen - low priority: cold path
     }
-}
 
-public partial struct Velocity
-{
-    public static class Metadata
+    static List<Type> _registeredComponentTypes = new ();
+
+    public static void RegisterComponent<T>()
     {
-        public const gComponentFlagType Flag = 1 << 1;
+        if (_registeredComponentTypes.Count >= sizeof(gComponentFlagType))
+            throw new ArgumentOutOfRangeException("Type being used for component flags doesn't comport more components");
+        _registeredComponentTypes.Add(typeof(T));
     }
-}
 
+    public static int GetComponentFlagPosition<T>()
+    {
+        return _registeredComponentTypes.IndexOf(typeof(T));
+    }
+
+    public static gComponentFlagType GetComponentFlag<T>()
+    {
+        return (gComponentFlagType)1 << GetComponentFlagPosition<T>();
+    }
+
+    public static int GetComponentSize<T>()
+    {
+        return Marshal.SizeOf<T>();
+    }
+
+    public static int GetFlagPosition(gComponentFlagType flag)
+    {
+        for (int i = 0; i < sizeof(gComponentFlagType); i++)
+            if (((flag << i) & 1) != 0)
+                return i;
+        throw new ArgumentException("Value passed as flag doesn't contain a flag");
+    }
+    
+    public static Type GetComponentTypeFromFlag(gComponentFlagType flag)
+    {
+        return _registeredComponentTypes[GetFlagPosition(flag)];
+    }
+
+    public static int GetComponentSizeFromFlag(gComponentFlagType flag)
+    {
+        return Marshal.SizeOf(GetComponentTypeFromFlag(flag));
+    }
+
+}
 
 public readonly unsafe struct ReverseIterator<T0, T1>
     where T0 : unmanaged

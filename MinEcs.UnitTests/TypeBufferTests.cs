@@ -1,6 +1,3 @@
-using System.Collections;
-using System.Runtime.CompilerServices;
-
 namespace MinEcs.UnitTests;
 
 public unsafe class TypeBufferTests : IDisposable
@@ -55,7 +52,7 @@ public unsafe class TypeBufferTests : IDisposable
     {
         typeBuffer?.Dispose();
         Assert.Throws<InvalidOperationException>(() => new TypeBuffer());
-        var typeSize = (nuint)Unsafe.SizeOf<T>();
+        var typeSize = (nuint)Marshal.SizeOf<T>();
         var validBuffer = new TypeBuffer(typeSize, (uint)count);
         Assert.True(validBuffer.TypeSize == typeSize);
         typeBuffer = validBuffer;

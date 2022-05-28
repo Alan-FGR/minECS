@@ -1,6 +1,4 @@
-﻿using System.Drawing;
-
-namespace MinEcs;
+﻿namespace MinEcs;
 
 /// <summary> A collection of fixed size buffers for a single type </summary>
 //public unsafe ref struct SparseTypePool<T> where T : unmanaged
