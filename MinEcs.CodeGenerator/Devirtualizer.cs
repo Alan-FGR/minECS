@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.IO;
+using Microsoft.CodeAnalysis;
 
 namespace SourceGenerator
 {
@@ -11,22 +12,25 @@ namespace SourceGenerator
             var mainMethod = context.Compilation.GetEntryPoint(context.CancellationToken);
 
             // Build up the source code
-            string source = $@" // Auto-generated code
+            string source = $@"
+// Auto-generated code
 using System;
 
-namespace {mainMethod.ContainingNamespace.ToDisplayString()}
+namespace Generated;
+
+public static partial class Functions
 {{
-    public static partial class {mainMethod.ContainingType.Name}
-    {{
-        static partial void HelloFrom(string name) =>
-            Console.WriteLine($""Generator v2 says: Hi from '{{name}}'"");
-    }}
+    public static void Print(string name) =>
+        Console.WriteLine($""Generator v2 says: Hi from '{{name}}'"");
 }}
+
 ";
             var typeName = mainMethod.ContainingType.Name;
 
             // Add the source code to the compilation
-            context.AddSource($"{typeName}.MinEcsGenerated.cs", source);
+            // context.AddSource($"{typeName}.MinEcsGenerated.cs", source);
+            Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "Generated"));
+            File.WriteAllText(Path.Combine("Generated", $"{typeName}.MinEcs.cs"), source);
         }
 
         public void Initialize(GeneratorInitializationContext context)

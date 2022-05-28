@@ -9,6 +9,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MinEcs.CodeGenerator", "Min
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MinEcs", "MinEcs\MinEcs.csproj", "{958A1E0B-9E31-4DE0-A1D5-F24625E71569}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MinEcs.Profiling.RyuJitCode", "MinEcs.Profiling.RyuJitCode\MinEcs.Profiling.RyuJitCode.csproj", "{324DA371-2D7D-43D8-8706-AEBF60D742CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MinEcs.UnitTests", "MinEcs.UnitTests\MinEcs.UnitTests.csproj", "{8DF01291-15F9-4F9B-8685-996731860C1C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{958A1E0B-9E31-4DE0-A1D5-F24625E71569}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{958A1E0B-9E31-4DE0-A1D5-F24625E71569}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{958A1E0B-9E31-4DE0-A1D5-F24625E71569}.Release|Any CPU.Build.0 = Release|Any CPU
+		{324DA371-2D7D-43D8-8706-AEBF60D742CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{324DA371-2D7D-43D8-8706-AEBF60D742CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{324DA371-2D7D-43D8-8706-AEBF60D742CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{324DA371-2D7D-43D8-8706-AEBF60D742CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DF01291-15F9-4F9B-8685-996731860C1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DF01291-15F9-4F9B-8685-996731860C1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DF01291-15F9-4F9B-8685-996731860C1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DF01291-15F9-4F9B-8685-996731860C1C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
