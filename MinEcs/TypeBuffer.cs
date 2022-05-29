@@ -13,22 +13,27 @@
 //    }
 //}
 
-public sealed unsafe class TypeBuffer : IDisposable
+
+public unsafe
+#if DEBUG
+    class
+#else
+    struct
+#endif
+TypeBuffer : IDisposable
 {
-    public readonly nuint TypeSize;
     void* _memAddr;
 
     public TypeBuffer() => throw Utils.InvalidCtor();
 
-    public TypeBuffer(nuint typeSize, nuint startingAllocCount)
+    public TypeBuffer(nuint startingAllocBytes)
     {
-        TypeSize = typeSize;
-        _memAddr = Alloc(startingAllocCount);
+        _memAddr = Alloc(startingAllocBytes);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void* Alloc(nuint elementCount) =>
-        NativeMemory.AlignedAlloc(TypeSize * elementCount, MemoryConstants.Alignment);
+    static void* Alloc(nuint allocBytes) =>
+        NativeMemory.AlignedAlloc(allocBytes, MemoryConstants.Alignment);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     void Free()
@@ -38,14 +43,12 @@ public sealed unsafe class TypeBuffer : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Resize(nuint newCount, nuint elementsToCopy)
+    public void Resize(nuint newCount, nuint bytesToCopy)
     {
         var newAlloc = Alloc(newCount);
 
-        if (elementsToCopy != 0)
-        {
-            Unsafe.CopyBlock(newAlloc, _memAddr, (uint)(TypeSize * elementsToCopy));
-        }
+        if (bytesToCopy > 0) 
+            Unsafe.CopyBlock(newAlloc, _memAddr, (uint) bytesToCopy);
 
         Free();
         _memAddr = newAlloc;
@@ -84,14 +87,14 @@ public sealed unsafe class TypeBuffer : IDisposable
 
 #if DEBUG
         GC.SuppressFinalize(this);
-#endif
     }
 
-#if DEBUG
     ~TypeBuffer()
     {
         if (_memAddr != null)
             throw new Exception($"{GetType()} was not disposed explicitly in user code.");
-    }
+
 #endif
+
+    }
 }

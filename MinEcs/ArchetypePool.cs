@@ -3,24 +3,9 @@ using System.Numerics;
 
 namespace MinEcs;
 
-public interface IArchetypePool
-{
-    nuint EntityCount { get; }
-    nuint EntityCapacity { get; }
-
-    /// <returns> Index of components in archetype pools </returns>
-    nuint AddEntity(gEntityType entity, in Position component, in Velocity velocity);
-
-    unsafe void GetIterators<T0, T1>(out List<ReverseIterator<T0, T1>> bufferRanges,
-        gComponentFlagType component0Flag,
-        gComponentFlagType component1Flag
-    ) 
-        where T0 : unmanaged
-        where T1 : unmanaged;
-}
 
 [Variadic]
-public class ArchetypePool : IArchetypePool // TODO store as ref structs into contiguous hashmap value buffer (registry managed)
+public class ArchetypePool //: IArchetypePool // TODO store as ref structs into contiguous hashmap value buffer (registry managed)
 {
     public nuint EntityCount { get; private set; }
     public nuint EntityCapacity { get; private set; }
@@ -32,7 +17,7 @@ public class ArchetypePool : IArchetypePool // TODO store as ref structs into co
 
     public ArchetypePool() => throw Utils.InvalidCtor();
 
-    public ArchetypePool(gComponentFlagType archetypeFlags, nuint startingCapacity = 16)
+    public ArchetypePool(ComponentFlag.Set archetypeFlags, nuint startingCapacity = 16)
     {
         EntityCount = 0;
         EntityCapacity = startingCapacity;

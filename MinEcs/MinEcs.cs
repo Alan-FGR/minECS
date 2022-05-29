@@ -9,8 +9,8 @@ Console.WriteLine("test");
 {
     var registry = new Registry();
 
-    ComponentTypeData.RegisterComponent<Position>();
-    ComponentTypeData.RegisterComponent<Velocity>();
+    registry.RegisterComponent<Position>();
+    registry.RegisterComponent<Velocity>();
 
     var entity = registry.CreateEntity(new Position(), new Velocity());
 
@@ -57,11 +57,12 @@ public struct Velocity
 // TODO codegen at compile time
 public static class ComponentTypeData
 {
-    public static class Metadata // TODO codegen this metadata
+    public static class CodeGen_Position // TODO codegen this metadata
     {
+        public static Type Type = typeof(Position);
+        public static int Size = Marshal.SizeOf(Type);
         public const int FlagPosition = 0;
         public const gComponentFlagType Flag = 1 << FlagPosition;
-        //public const nuint Size = 0; // TODO codegen - low priority: cold path
     }
 
     static List<Type> _registeredComponentTypes = new ();

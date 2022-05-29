@@ -1,128 +1,208 @@
-﻿namespace MinEcs;
+﻿using System.Diagnostics;
+
+namespace MinEcs;
 
 public readonly ref partial struct Registry
 {
-    readonly gEntityBufferType _entitiesArchetypes;
-    readonly gArchetypePoolsMap _archetypePools; // TODO fast hashmap with contiguous values buffer 
+    readonly EntityToComponentFlagsMap _entitiesArchetypes;
+    readonly ArchetypePoolsMap _archetypePools; // TODO fast hashmap with contiguous values buffer 
 
-    // Providers
-    readonly Func<gComponentFlagType, IArchetypePool> _archetypePoolProvider;
+    // TODO codegen switch
+    // TODO codegen statics
+    readonly Dictionary<Type, nuint> _componentTypeToFlagPosition = new();
+
+    // TODO stackalloc span
+    readonly List<nuint> _componentTypeSizes = new();
+    
+    #region Constructors
 
     public Registry()
     {
-        _entitiesArchetypes = new List<gComponentFlagType>();
-        _archetypePools = new Dictionary<gComponentFlagType, IArchetypePool>();
-        _archetypePoolProvider = flags => new ArchetypePool(flags);
+        _entitiesArchetypes = new EntityToComponentFlagsMap();
+        _archetypePools = new ArchetypePoolsMap(set => new ArchetypePool(set));
     }
 
-    public Registry(gEntityBufferType injectedEntityBuffer,
-        Dictionary<gComponentFlagType, IArchetypePool> injectedArchetypePools,
-        Func<gComponentFlagType, IArchetypePool> injectedArchetypePoolProvider)
+    public Registry(EntityToComponentFlagsMap injectedEntityBuffer,
+        ArchetypePoolsMap injectedArchetypePools,
+        Func<ComponentFlag.Set, ArchetypePool> injectedArchetypePoolProvider)
     {
         _entitiesArchetypes = injectedEntityBuffer;
         _archetypePools = injectedArchetypePools;
-        _archetypePoolProvider = injectedArchetypePoolProvider;
     }
 
-    //public gEntityType CreateEntity()
-    //{
-    //    var newEntity = (gEntityType)_entitiesMap.Count;
-    //    _entitiesMap.Add(newEntity, default);
-    //    return newEntity;
-    //}
+    #endregion
 
-    public gEntityType CreateEntity(params object[] components) // TODO codegen concrete overloads as user's usage
+    #region Registry API
+
+    public void RegisterComponent<T>()
     {
-        throw new NotImplementedException(
-            $"The code generator was supposed to create a 'specialized' overload for this usage. Components: " +
-            $"{string.Join(", ", components.GetType())}"
-        );
+        _componentTypeToFlagPosition.Add(typeof(T), (nuint)_componentTypeToFlagPosition.Count);
+        _componentTypeSizes.Add((nuint)Marshal.SizeOf<T>());
     }
+    
+    #endregion
 
-    public gEntityType CreateEntity(in Position component0, in Velocity component1)
+    #region Entities API
+
+    public Entity CreateEntity()
     {
-        var archetypeFlags =
-            Position.Metadata.Flag |
-            Velocity.Metadata.Flag |
-            0;
-        
-        var newEntity = (gEntityType)_entitiesArchetypes.Count;
-        _entitiesArchetypes[(int)newEntity] = archetypeFlags; // TODO rem cast
-
-        //ref var pool = ref GetPoolForArchetype(archetypeFlags); TODO
-        var pool = GetPoolForArchetype(archetypeFlags);
-        pool.AddEntity(newEntity,
-            in component0,
-            in component1
-        );
-
+        //throw new NotImplementedException(
+        //    $"The code generator was supposed to create a 'specialized' overload for this usage. Components: " +
+        //    $"{string.Join(", ", components.GetType())}"
+        //);
+        var newEntity = (Entity)_entitiesArchetypes.Count;
+        _entitiesArchetypes.Add(newEntity, default);
         return newEntity;
     }
 
-    // TODO RefAction with entity ID (pass entity id getter into iterator from the pool)
-    public delegate void RefAction<T1, T2>(ref T1 component1, ref T2 component2); // genvariadic delegate
-    public unsafe void Loop(RefAction<Position, Velocity> loopAction) // genvariadic function
+    public Entity CreateEntityWithComponents(params object[] components) // TODO codegen concretes
     {
-        var archetypeFlags =
-            Position.Metadata.Flag |
-            Velocity.Metadata.Flag |
-            0;
+        Debug.Assert(components.Length > 0);
 
-        // TODO optimize
-        var matchingPools = _archetypePools.Where(p => (p.Key & archetypeFlags) == archetypeFlags);
+        var componentTypes = components.Select(x => x.GetType()).ToArray();
+        var map = _componentTypeToFlagPosition!;
+        var componentFlags = componentTypes.Select(x => ComponentFlag.Factory.CreateFromFlagPosition(map[x])).ToArray();
 
-        foreach (var matchingPool in matchingPools)
-        {
-            matchingPool.Value.GetIterators<Position, Velocity>(out var reverseIterators,
-                Position.Metadata.Flag,
-                Velocity.Metadata.Flag
-            );
-            
-            //TODO MT
+        var archetypeFlags = ComponentFlag.Set.Factory.CreateFromFlags(componentFlags);
 
-            foreach (var reverseIterator in reverseIterators)
-            {
-                reverseIterator.Iterate(loopAction);
-            }
-        }
+        var archetypePool = 
+
+        var newEntity = (Entity)_entitiesArchetypes.Count;
+        _entitiesArchetypes.Add(newEntity, default);
+        return newEntity;
     }
 
+    public void DeleteEntity(Entity entity)
+    {
+        _entitiesArchetypes.Remove(entity);
+        ClearEntityComponents(entity);
+    }
 
-    //public ref Position AddComponentToEntity(gEntityType entity, Position component)
+    #endregion
+
+    #region Components API
+
+    public ref T AddEntityComponent<T>(gEntityType entity, ref T component)
+    {
+        // TODO error when entity does not exist
+        var entityArchetypeFlags = _entitiesArchetypes[entity]; // TODO ref
+
+        var entityArchetypePool = GetPoolForArchetype(entityArchetypeFlags);
+
+        if ((entityArchetypeFlags & Position.Metadata.Flag) != 0)
+            throw new ArgumentException($"Entity already has a component of type {nameof(Position)}");
+
+        entityArchetypeFlags |= Position.Metadata.Flag;
+
+        entityArchetypePool.
+    }
+
+    public void RemoveEntityComponent<T0>(gEntityType entity)
+    {
+
+    }
+
+    /// <summary>Changes entity archetype in one shot. Removes components not passed and adds non-existing components passed.</summary>
+    /// <param name="keepData">Keeps data in existing components. When false all components passed will contain default data.</param>
+    public void SetEntityComponent<T0>(gEntityType entity, out T0 component0, bool keepData)
+    {
+
+    }
+
+    public void GetEntityComponent<T0>(out T0 component0) where T0 : unmanaged
+    {
+
+    }
+
+    public void ClearEntityComponents(Entity entity)
+    {
+
+    }
+
+    #endregion
+
+    #region Systems API
+
+
+
+    #endregion
+
+    #region Private
+
+
+
+    #endregion
+
+    //public gEntityType CreateEntity(in Position component0, in Velocity component1)
     //{
-    //    // TODO error when entity does not exist
-    //    var entityArchetypeFlags = _entitiesArchetypes[entity]; // TODO ref
+    //    var archetypeFlags =
+    //        Position.Metadata.Flag |
+    //        Velocity.Metadata.Flag |
+    //        0;
 
-    //    var entityArchetypePool = GetPoolForArchetype(entityArchetypeFlags);
+    //    var newEntity = (gEntityType)_entitiesArchetypes.Count;
+    //    _entitiesArchetypes[(int)newEntity] = archetypeFlags; // TODO rem cast
 
-    //    if ((entityArchetypeFlags & Position.Metadata.Flag) != 0)
-    //        throw new ArgumentException($"Entity already has a component of type {nameof(Position)}");
+    //    //ref var pool = ref GetPoolForArchetype(archetypeFlags); TODO
+    //    var pool = GetPoolForArchetype(archetypeFlags);
+    //    pool.AddEntity(newEntity,
+    //        in component0,
+    //        in component1
+    //    );
 
-    //    entityArchetypeFlags |= Position.Metadata.Flag;
-
-    //    entityArchetypePool.
-
+    //    return newEntity;
     //}
 
+    //// TODO RefAction with entity ID (pass entity id getter into iterator from the pool)
+    //public delegate void RefAction<T1, T2>(ref T1 component1, ref T2 component2); // genvariadic delegate
+    //public unsafe void Loop(RefAction<Position, Velocity> loopAction) // genvariadic function
+    //{
+    //    var archetypeFlags =
+    //        Position.Metadata.Flag |
+    //        Velocity.Metadata.Flag |
+    //        0;
+
+    //    // TODO optimize
+    //    var matchingPools = _archetypePools.Where(p => (p.Key & archetypeFlags) == archetypeFlags);
+
+    //    foreach (var matchingPool in matchingPools)
+    //    {
+    //        matchingPool.Value.GetIterators<Position, Velocity>(out var reverseIterators,
+    //            Position.Metadata.Flag,
+    //            Velocity.Metadata.Flag
+    //        );
+
+    //        //TODO MT
+
+    //        foreach (var reverseIterator in reverseIterators)
+    //        {
+    //            reverseIterator.Iterate(loopAction);
+    //        }
+    //    }
+    //}
+
+
+
+
     //ref ArchetypePool GetPoolForArchetype(ulong entityArchetypeFlags) TODO
-    IArchetypePool GetPoolForArchetype(ulong entityArchetypeFlags)
-    {
-        if (!_archetypePools.TryGetValue(entityArchetypeFlags, out var entityArchetypePool))
-            entityArchetypePool = _archetypePoolProvider(entityArchetypeFlags);
-        return entityArchetypePool;
+    //gIArchetypePool GetPoolForArchetype(ulong entityArchetypeFlags)
+    //{
+    //    if (!_archetypePools.TryGetValue(entityArchetypeFlags, out var entityArchetypePool))
+    //        entityArchetypePool = _archetypePoolProvider(entityArchetypeFlags);
+    //    return entityArchetypePool;
 
-        //ref ArchetypePool entityArchetypePool =
-        //    ref CollectionsMarshal.GetValueRefOrNullRef(_archetypePools, entityArchetypeFlags);
+    //    //ref ArchetypePool entityArchetypePool =
+    //    //    ref CollectionsMarshal.GetValueRefOrNullRef(_archetypePools, entityArchetypeFlags);
 
-        //if (!Unsafe.IsNullRef(ref entityArchetypePool)) return ref entityArchetypePool;
+    //    //if (!Unsafe.IsNullRef(ref entityArchetypePool)) return ref entityArchetypePool;
 
-        //_archetypePools.Add(entityArchetypeFlags, new ArchetypePool(entityArchetypeFlags));
+    //    //_archetypePools.Add(entityArchetypeFlags, new ArchetypePool(entityArchetypeFlags));
 
-        //entityArchetypePool =
-        //    ref CollectionsMarshal.GetValueRefOrNullRef(_archetypePools, entityArchetypeFlags);
+    //    //entityArchetypePool =
+    //    //    ref CollectionsMarshal.GetValueRefOrNullRef(_archetypePools, entityArchetypeFlags);
 
-        //Debug.Assert(!Unsafe.IsNullRef(ref entityArchetypePool));
+    //    //Debug.Assert(!Unsafe.IsNullRef(ref entityArchetypePool));
 
-        //return ref entityArchetypePool;
-    }
+    //    //return ref entityArchetypePool;
+    //}
 }

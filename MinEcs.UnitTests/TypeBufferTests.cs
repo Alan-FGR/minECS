@@ -53,8 +53,7 @@ public unsafe class TypeBufferTests : IDisposable
         typeBuffer?.Dispose();
         Assert.Throws<InvalidOperationException>(() => new TypeBuffer());
         var typeSize = (nuint)Marshal.SizeOf<T>();
-        var validBuffer = new TypeBuffer(typeSize, (uint)count);
-        Assert.True(validBuffer.TypeSize == typeSize);
+        var validBuffer = new TypeBuffer(typeSize * (uint)count);
         typeBuffer = validBuffer;
     }
 
