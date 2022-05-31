@@ -12,13 +12,9 @@ Console.WriteLine("test");
     registry.RegisterComponent<Position>();
     registry.RegisterComponent<Velocity>();
 
-    var entity = registry.CreateEntity(new Position(), new Velocity());
+    var entity = registry.CreateEntityWithComponents(new Position(), new Velocity());
 
-    registry.Loop((ref Position position, ref Velocity velocity) =>
-    {
-        position.x += velocity.x;
-        position.y += velocity.y;
-    });
+    
 
 }
 

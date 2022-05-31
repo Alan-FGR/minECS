@@ -1,6 +1,6 @@
 namespace MinEcs.UnitTests;
 
-public unsafe class TypeBufferTests : IDisposable
+public unsafe class NativeMemoryBufferTests : IDisposable
 {
     //public class ClassDataProvider : IEnumerable<object[]>
     //{
@@ -38,9 +38,9 @@ public unsafe class TypeBufferTests : IDisposable
     };
 
 
-    TypeBuffer? typeBuffer;
+    NativeMemoryBuffer? typeBuffer;
 
-    public TypeBufferTests()
+    public NativeMemoryBufferTests()
     {
         // xUnit does not support ctor generic piping thus we use the Construction test
     }
@@ -51,9 +51,9 @@ public unsafe class TypeBufferTests : IDisposable
     public void Construction<T>(T _, int count) where T : unmanaged
     {
         typeBuffer?.Dispose();
-        Assert.Throws<InvalidOperationException>(() => new TypeBuffer());
+        Assert.Throws<InvalidOperationException>(() => new NativeMemoryBuffer());
         var typeSize = (nuint)Marshal.SizeOf<T>();
-        var validBuffer = new TypeBuffer(typeSize * (uint)count);
+        var validBuffer = new NativeMemoryBuffer(typeSize * (uint)count);
         typeBuffer = validBuffer;
     }
 

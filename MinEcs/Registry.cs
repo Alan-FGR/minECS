@@ -2,32 +2,64 @@
 
 namespace MinEcs;
 
-public readonly ref partial struct Registry
+public readonly ref struct ComponentTypeInfoProvider // TODO 
 {
-    readonly EntityToComponentFlagsMap _entitiesArchetypes;
-    readonly ArchetypePoolsMap _archetypePools; // TODO fast hashmap with contiguous values buffer 
+    public readonly ref struct _CG_FlagPosition
+    {
+        public const nuint Position = 1 << 0;
+    }
 
     // TODO codegen switch
     // TODO codegen statics
     readonly Dictionary<Type, nuint> _componentTypeToFlagPosition = new();
-
-    // TODO stackalloc span
-    readonly List<nuint> _componentTypeSizes = new();
+    // TODO codegen consts
+    readonly List<nuint> _componentsSizes = new();
     
-    #region Constructors
+    public ComponentTypeInfoProvider() { }
 
-    public Registry()
+    public void RegisterComponent(Type type)
     {
-        _entitiesArchetypes = new EntityToComponentFlagsMap();
-        _archetypePools = new ArchetypePoolsMap(set => new ArchetypePool(set));
+        _componentTypeToFlagPosition.Add(type, (nuint)_componentTypeToFlagPosition.Count);
+        _componentsSizes.Add((nuint)Marshal.SizeOf(type));
     }
 
-    public Registry(EntityToComponentFlagsMap injectedEntityBuffer,
-        ArchetypePoolsMap injectedArchetypePools,
-        Func<ComponentFlag.Set, ArchetypePool> injectedArchetypePoolProvider)
+    public nuint ComponentTypeToFlagPosition(Type type)
     {
-        _entitiesArchetypes = injectedEntityBuffer;
-        _archetypePools = injectedArchetypePools;
+        return _componentTypeToFlagPosition[type];
+    }
+
+    public ComponentFlag ComponentTypeToFlag(Type type)
+    {
+        return ComponentFlag.CreateFromPosition(ComponentTypeToFlagPosition(type));
+    }
+
+    public nuint ComponentFlagToSize(ComponentFlag flag)
+    {
+        return _componentsSizes[(int)flag.FlagPosition()];
+    }
+}
+
+public readonly ref partial struct Registry
+{
+    readonly EntityDataMap _entityDataMap;
+    readonly ArchetypeFlagsToPoolMap _archetypeFlagsToPool; // TODO fast hashmap with contiguous values buffer
+
+    readonly ComponentTypeInfoProvider _componentTypeInfoProvider = new(); // code generator will expand stack
+
+    #region Constructors
+
+    public unsafe Registry()
+    {
+        _entityDataMap = new EntityDataMap();
+        _archetypeFlagsToPool = new ArchetypeFlagsToPoolMap();
+    }
+
+    public Registry(
+        EntityDataMap injectedEntityBuffer,
+        ArchetypeFlagsToPoolMap injectedArchetypePoolsManager)
+    {
+        _entityDataMap = injectedEntityBuffer;
+        _archetypeFlagsToPool = injectedArchetypePoolsManager;
     }
 
     #endregion
@@ -36,45 +68,49 @@ public readonly ref partial struct Registry
 
     public void RegisterComponent<T>()
     {
-        _componentTypeToFlagPosition.Add(typeof(T), (nuint)_componentTypeToFlagPosition.Count);
-        _componentTypeSizes.Add((nuint)Marshal.SizeOf<T>());
+        _componentTypeInfoProvider.RegisterComponent(typeof(T));
     }
-    
+
     #endregion
 
     #region Entities API
 
-    public Entity CreateEntity()
+    public Entity CreateEmptyEntity()
     {
         //throw new NotImplementedException(
         //    $"The code generator was supposed to create a 'specialized' overload for this usage. Components: " +
         //    $"{string.Join(", ", components.GetType())}"
         //);
-        var newEntity = (Entity)_entitiesArchetypes.Count;
-        _entitiesArchetypes.Add(newEntity, default);
-        return newEntity;
+        throw new NotImplementedException();
+        //var newEntity = (Entity)_entitiesArchetypes.Count;
+        //_entitiesArchetypes.Add(newEntity, default);
+        //return newEntity;
     }
 
-    public Entity CreateEntityWithComponents(params object[] components) // TODO codegen concretes
+    public Entity CreateEntityWithComponents(params object[] components) // TODO codegen generics and concretes
     {
         Debug.Assert(components.Length > 0);
 
-        var componentTypes = components.Select(x => x.GetType()).ToArray();
-        var map = _componentTypeToFlagPosition!;
-        var componentFlags = componentTypes.Select(x => ComponentFlag.Factory.CreateFromFlagPosition(map[x])).ToArray();
+        var archetypeFlags = GetArchetypeFlagsFromTypes(components);
+        var archetypePool = _archetypeFlagsToPool[archetypeFlags];
 
-        var archetypeFlags = ComponentFlag.Set.Factory.CreateFromFlags(componentFlags);
+        var newEntityId = (Entity)_entityDataMap.Count;
+        
+        archetypePool.AddComponentSetToEntity(newEntityId, out var componentSetIndex);
 
-        var archetypePool = 
+        var entityData = new EntityData(archetypeFlags, componentSetIndex);
 
-        var newEntity = (Entity)_entitiesArchetypes.Count;
-        _entitiesArchetypes.Add(newEntity, default);
-        return newEntity;
+        foreach (var component in components)
+        {
+            archetypePool.SetComponentData(ref entityData, component);
+        }
+
+        _entityDataMap.Add(newEntityId, entityData);
     }
 
     public void DeleteEntity(Entity entity)
     {
-        _entitiesArchetypes.Remove(entity);
+        _entityDataMap.Remove(entity);
         ClearEntityComponents(entity);
     }
 
@@ -85,7 +121,7 @@ public readonly ref partial struct Registry
     public ref T AddEntityComponent<T>(gEntityType entity, ref T component)
     {
         // TODO error when entity does not exist
-        var entityArchetypeFlags = _entitiesArchetypes[entity]; // TODO ref
+        var entityArchetypeFlags = _entityDataMap[entity]; // TODO ref
 
         var entityArchetypePool = GetPoolForArchetype(entityArchetypeFlags);
 
@@ -129,7 +165,24 @@ public readonly ref partial struct Registry
 
     #region Private
 
+    ComponentFlag.Set GetArchetypeFlagsFromTypes(object[] components)
+    {
+        var componentTypes = components.Select(x => x.GetType()).ToArray();
+        var componentFlags = new List<ComponentFlag>();
+        foreach (var componentType in componentTypes)
+            componentFlags.Add(_componentTypeInfoProvider.ComponentTypeToFlag(componentType));
+        var archetypeFlags = ComponentFlag.Set.CreateFromFlags(componentFlags.ToArray());
+        return archetypeFlags;
+    }
 
+    ComponentFlag.Set GetArchetypeFlagsFromTypes(Position position)
+    {
+        var positionFlag = ComponentTypeInfoProvider._CG_FlagPosition.Position;
+        foreach (var componentType in componentTypes)
+            componentFlags.Add(_componentTypeInfoProvider.ComponentTypeToFlag(componentType));
+        var archetypeFlags = ComponentFlag.Set.CreateFromFlags(componentFlags.ToArray());
+        return archetypeFlags;
+    }
 
     #endregion
 
