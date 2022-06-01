@@ -36,14 +36,16 @@ NativeMemoryBuffer : IDisposable
         _memAddr = null;
     }
 
+    public bool HasAllocation() => _memAddr != null;
+
     public void Resize(nuint newByteCount, nuint bytesToCopy)
     {
         var newAlloc = Alloc(newByteCount);
 
         // if bytesToCopy is not 0, _memAddr can't be null
-        Debug.Assert(bytesToCopy == 0 || _memAddr != null);
+        Debug.Assert(bytesToCopy == 0 || HasAllocation());
 
-        if (_memAddr != null)
+        if (HasAllocation())
         {
             if (bytesToCopy > 0)
                 Unsafe.CopyBlock(newAlloc, _memAddr, (uint)bytesToCopy);

@@ -3,39 +3,79 @@ using System.Numerics;
 
 namespace MinEcs;
 
-
-
 [Variadic]
 public class ArchetypePool //: IArchetypePool // TODO store as ref structs into contiguous hashmap value buffer (registry managed)
 {
-    struct ComponentPoolData
+    unsafe struct ComponentPoolManager // TODO NOCOPY
     {
-        public readonly nuint ComponentSize;
-        public readonly NativeMemoryBuffer Buffer;
-
-        public ComponentPoolData() => throw Utils.InvalidCtor();
-
-        public ComponentPoolData(nuint componentSize, NativeMemoryBuffer buffer)
+        // MAYBE map memory into multiple fixed-size buffers. However, cache misses are too expensive and components
+        // are normally small, so a custom pre-allocated memory would be required in order to keep locality sane
+        // and allow for quick buffer resizing. That will always cost one indirection in the access by entity id
+        // however, and we could simply initialize large buffers right away and see resizing as a safety mechanism
+        // in the case of an overflow, so this is to be discussed and not high-priority at all
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        readonly struct ComponentPoolData
         {
-            ComponentSize = componentSize;
-            Buffer = buffer;
-        }
-    }
+            readonly nuint ComponentSize;
+            readonly NativeMemoryBuffer Buffer;
 
-    class ComponentPoolManager
-    {
-        readonly Dictionary<ComponentFlag, ComponentPoolData> _map = new();
-        public nuint Count => (nuint)_map.Count;
-        public void AddPoolForComponent(ComponentFlag flag, ComponentPoolData poolData) => _map.Add(flag, poolData);
-        public void ResizePools(nuint elementsToCopy, nuint newCapacity)
-        {
-            foreach (var data in _map.Values)
-                data.Buffer.Resize(newCapacity * data.ComponentSize, elementsToCopy * data.ComponentSize);
+            public ComponentPoolData() => throw Utils.InvalidCtor();
+
+            public ComponentPoolData(nuint componentSize)
+            {
+                ComponentSize = componentSize;
+                Buffer = new NativeMemoryBuffer();
+            }
+
+            public bool IsValid => Buffer.HasAllocation();
+            public void Resize(nuint elemCount, nuint elemsToCopy) => Buffer.Resize(elemCount * ComponentSize, elemsToCopy * ComponentSize);
         }
-        public void AddComponent<T>(ComponentFlag componentFlag, nuint setIndex, ref T componentData) where T : unmanaged
+
+        struct ComponentPoolDataStore
         {
-            _map[componentFlag].Buffer.Set(setIndex, componentData);
+            //const int ComponentPoolDataSize = 16; // nuint + void* // sizeof(ComponentPoolData) TODO
+            //const int ComponentFlagsCapacity = 8 * 8; // sizeof(ComponentFlag * 8)
+            //fixed byte _dataBuffers[ComponentPoolDataSize * ComponentFlagsCapacity]; // index is the flag position TODO: codegen fixed
+            //public ref ComponentPoolData GetRef(nuint index)
+            //{
+            //    return ref (ComponentPoolData*)_dataBuffers[index * ComponentPoolDataSize];
+            //}
+            ComponentPoolData[] _dataBuffers = new ComponentPoolData[sizeof(ComponentFlag) * 8];
+            public ComponentPoolDataStore() { }
+
+            public void CreatePoolFor(ComponentFlag flag, nuint componentSize, nuint startingCapacity)
+            {
+                var newPoolData = new ComponentPoolData(componentSize);
+                newPoolData.Resize(startingCapacity, 0);
+                _dataBuffers[flag.FlagPosition()] = newPoolData;
+            }
+
+            public void ResizeUsedPools(nuint elemsCapacity, nuint elemsToCopy)
+            {
+                foreach (var buffer in _dataBuffers)
+                    if (buffer.IsValid)
+                        buffer.Resize(elemsCapacity, elemsToCopy);
+            }
+
+            public ref ComponentPoolData GetAsRef(nuint index) => ref _dataBuffers[index];
+            public nuint UsedCount => (nuint) _dataBuffers.Count(cpd => cpd.IsValid); // TODO de-LINQ
         }
+        ComponentPoolDataStore _componentPoolDataStore;
+        
+        public nuint Count => _componentPoolDataStore.UsedCount;
+
+        //TODO revamp all this piping at cost of elegance?
+        public void AddPoolForComponent(ComponentFlag flag, nuint componentSize, nuint startingCapacity)
+        {
+            _componentPoolDataStore.CreatePoolFor(flag, componentSize, startingCapacity);
+        }
+
+        public void ResizePools(nuint newCapacity, nuint elementsToCopy) => _componentPoolDataStore.ResizeUsedPools(newCapacity, elementsToCopy);
+
+        //public void AddComponent<T>(ComponentFlag componentFlag, nuint setIndex, ref T componentData) where T : unmanaged
+        //{
+        //    _map[componentFlag].Buffer.Set(setIndex, componentData);
+        //}
     }
 
     public nuint ComponentSetCount { get; private set; }
@@ -44,7 +84,7 @@ public class ArchetypePool //: IArchetypePool // TODO store as ref structs into 
     // TODO probably not necessary to use a hashmap here
     // TODO grab typebuffers as ref for usages
     // TODO store in member array to be indexed with the flag bit position
-    readonly ComponentPoolManager _componentPoolManager = new();
+    readonly ComponentPoolManager _componentPoolManager;
 
     readonly Dictionary<nuint, Entity> _indicesToEntities = new();
 
@@ -60,11 +100,9 @@ public class ArchetypePool //: IArchetypePool // TODO store as ref structs into 
         while (flagsIterator.GetNext(out var componentFlag))
         {
             var componentSize = componentTypeInfoProvider.ComponentFlagToSize(componentFlag);
-            _componentPoolManager.AddPoolForComponent(componentFlag, new ComponentPoolData(componentSize, new NativeMemoryBuffer())); // TODO buffer provider
+            _componentPoolManager.AddPoolForComponent(componentFlag, componentSize, startingCapacity); // TODO buffer provider
         }
-
-        _componentPoolManager.ResizePools(0, startingCapacity);
-
+        
         var flagsCount = archetypeFlags.FlagCount();
         Debug.Assert(_componentPoolManager.Count == flagsCount);
     }
@@ -92,7 +130,7 @@ public class ArchetypePool //: IArchetypePool // TODO store as ref structs into 
 
     public void RemoveComponentSetAtIndex(nuint index, out nuint replacingIndex)
     {
-
+        throw new NotImplementedException();
     }
 
 
