@@ -4,7 +4,7 @@ namespace MinEcs;
 
 public readonly ref struct ComponentTypeInfoProvider // TODO 
 {
-    public readonly ref struct _CG_FlagPosition
+    public readonly ref struct _CG_FlagPositions
     {
         public const nuint Position = 1 << 0;
     }
@@ -39,12 +39,21 @@ public readonly ref struct ComponentTypeInfoProvider // TODO
     }
 }
 
+public static partial class MinEcsGenerator
+{
+    public static Registry GenerateRegistry<T>() // TODO way to discriminate for multiple registries - possibly generic
+    {
+        return new Registry();
+    }
+}
+
 public readonly ref partial struct Registry
 {
     readonly EntityDataMap _entityDataMap;
     readonly ArchetypeFlagsToPoolMap _archetypeFlagsToPool; // TODO fast hashmap with contiguous values buffer
 
     readonly ComponentTypeInfoProvider _componentTypeInfoProvider = new(); // code generator will expand stack
+
 
     #region Constructors
 
@@ -177,7 +186,7 @@ public readonly ref partial struct Registry
 
     ComponentFlag.Set GetArchetypeFlagsFromTypes(Position position)
     {
-        var positionFlag = ComponentTypeInfoProvider._CG_FlagPosition.Position;
+        var positionFlag = ComponentTypeInfoProvider._CG_FlagPositions.Position;
         foreach (var componentType in componentTypes)
             componentFlags.Add(_componentTypeInfoProvider.ComponentTypeToFlag(componentType));
         var archetypeFlags = ComponentFlag.Set.CreateFromFlags(componentFlags.ToArray());

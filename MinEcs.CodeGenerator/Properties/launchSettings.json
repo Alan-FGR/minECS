@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Code Generation": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\MinEcs.CodeGenerator.ConsoleTest\\MinEcs.CodeGenerator.ConsoleTest.csproj"
+    }
+  }
+}

@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MinEcs.CodeGenerator\MinEcs.CodeGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!--<ProjectReference Include="..\MinEcs.CodeGenerator\MinEcs.CodeGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />-->
   </ItemGroup>
 
 </Project>

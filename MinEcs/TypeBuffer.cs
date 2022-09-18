@@ -14,21 +14,26 @@ namespace MinEcs;
 //        Buffers = buffers;
 //    }
 //}
-
-
 public unsafe
 #if DEBUG
     class
 #else
-    struct
+    struct // TODO NOCOPY
 #endif
-NativeMemoryBuffer : IDisposable
+    NativeMemoryBuffer : IDisposable
 {
     void* _memAddr;
 
-    public NativeMemoryBuffer() => _memAddr = null;
-    static void* Alloc(nuint byteCount) =>
-        NativeMemory.AlignedAlloc(byteCount, MemoryConstants.Alignment); // TODO rem const
+    public NativeMemoryBuffer()
+    {
+        _memAddr = null;
+    }
+
+    static void* Alloc(nuint byteCount)
+    {
+        return NativeMemory.AlignedAlloc(byteCount, MemoryConstants.Alignment);
+        // TODO rem const
+    }
 
     void Free()
     {
@@ -36,7 +41,10 @@ NativeMemoryBuffer : IDisposable
         _memAddr = null;
     }
 
-    public bool HasAllocation() => _memAddr != null;
+    public bool HasAllocation()
+    {
+        return _memAddr != null;
+    }
 
     public void Resize(nuint newByteCount, nuint bytesToCopy)
     {
@@ -48,7 +56,7 @@ NativeMemoryBuffer : IDisposable
         if (HasAllocation())
         {
             if (bytesToCopy > 0)
-                Unsafe.CopyBlock(newAlloc, _memAddr, (uint)bytesToCopy);
+                Unsafe.CopyBlock(newAlloc, _memAddr, (uint) bytesToCopy);
             Free();
         }
 
@@ -56,36 +64,43 @@ NativeMemoryBuffer : IDisposable
     }
 
     [MethodImpl(AggressiveInlining)]
-    public T* GetAddress<T>() where T : unmanaged => (T*)_memAddr;
+    public T* GetAddress<T>() where T : unmanaged
+    {
+        return (T*) _memAddr;
+    }
 
     [MethodImpl(AggressiveInlining)]
     public ref T Get<T>(nuint index) where T : unmanaged
     {
-        return ref Unsafe.AsRef<T>((T*)_memAddr + index);
+        return ref Unsafe.AsRef<T>((T*) _memAddr + index);
     }
 
     [MethodImpl(AggressiveInlining)]
     public void Set<T>(nuint index, in T element) where T : unmanaged
     {
-        ((T*)_memAddr)[index] = element;
+        ((T*) _memAddr)[index] = element;
     }
 
     [MethodImpl(AggressiveInlining)]
     public void Copy<T>(nuint destIndex, nuint sourceIndex) where T : unmanaged
     {
-        ((T*)_memAddr)[destIndex] = ((T*)_memAddr)[sourceIndex];
+        ((T*) _memAddr)[destIndex] = ((T*) _memAddr)[sourceIndex];
     }
 
     [MethodImpl(AggressiveInlining)]
     public void Copy(void* destAddr, void* sourceAddr, nuint byteCount)
     {
-        Unsafe.CopyBlock(destAddr, sourceAddr, (uint)byteCount);
+        Unsafe.CopyBlock(destAddr, sourceAddr, (uint) byteCount);
     }
 
-    public List<T> ToList<T>(int count) where T : unmanaged => ToList<T>((nuint)count);
+    public List<T> ToList<T>(int count) where T : unmanaged
+    {
+        return ToList<T>((nuint) count);
+    }
+
     public List<T> ToList<T>(nuint count) where T : unmanaged
     {
-        return Enumerable.Range(0, (int)count).Select(i => Get<T>((nuint)i)).ToList();
+        return Enumerable.Range(0, (int) count).Select(i => Get<T>((nuint) i)).ToList();
     }
 
     public void Dispose()
@@ -102,6 +117,5 @@ NativeMemoryBuffer : IDisposable
             throw new Exception($"{GetType()} was not disposed explicitly in user code.");
 
 #endif
-
     }
 }

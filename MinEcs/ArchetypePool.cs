@@ -1,11 +1,13 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using NonCopyable;
 
 namespace MinEcs;
 
 [Variadic]
 public class ArchetypePool //: IArchetypePool // TODO store as ref structs into contiguous hashmap value buffer (registry managed)
 {
+    [NonCopyable]
     unsafe struct ComponentPoolManager // TODO NOCOPY
     {
         // MAYBE map memory into multiple fixed-size buffers. However, cache misses are too expensive and components
